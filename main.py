@@ -1,6 +1,7 @@
 from pyspark.sql.functions import collect_list, udf
 from pyspark.ml.linalg import VectorUDT, SparseVector
 import pandas as pd
+import numpy as np
 
 from streamgraph.graph import Graph, spark, sc
 
@@ -21,11 +22,7 @@ def getNodeAdjacency(edges, num_nodes):
 
     @pandas_udf('node long, neighbors array<long>', PandasUDFType.GROUPED_MAP)
     def joinArrays(a):
-        # nobody know what it means but it's provocative
-        # get SPARK going
-        dst = [0]
-        for i in a.dst:
-            dst += i
+        dst = np.unique(a.dst)
         return pd.DataFrame([(a.src.iloc[0], dst)], columns=['node', 'neighbors'])
 
     neighbors = neighbors.groupby('src').apply(joinArrays)
