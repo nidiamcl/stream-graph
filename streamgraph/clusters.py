@@ -2,7 +2,7 @@ import numpy as numpy
 import networkx as nx
 import scipy as sp
 import pickle
-import plotly.graph_objects as go
+#import plotly.graph_objects as go
 import matplotlib.pyplot as plt
 from collections import defaultdict
 from scipy.sparse import csr_matrix, spmatrix
