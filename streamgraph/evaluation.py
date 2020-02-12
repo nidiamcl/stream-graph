@@ -19,14 +19,6 @@ import seaborn as sns
 import warnings
 warnings.filterwarnings("ignore")
 
-amazon = 'amazon/com-amazon.ungraph.txt'
-email = 'email/email-Eu-core.txt'
-dblp = 'dblp/com-dblp.ungraph.txt'
-wikipedia = 'wikipedia/wiki-topcats.txt'
-youtube = 'youtube/com-youtube.ungraph.txt'
-
-data_path = '../../stream_graph_data/networks_ground_truth_communities/'
-
 def buildGraph(data_path, network_name):
     ''' builds networkx graph from file and returns it as a networkx object '''
   
@@ -186,26 +178,35 @@ def plotScores(df, network_name, data_path=data_path):
 
 
 if __name__ == "__main__":
-    
+
+    amazon = 'amazon/com-amazon.ungraph.txt'
+    email = 'email/email-Eu-core.txt'
+    dblp = 'dblp/com-dblp.ungraph.txt'
+    wikipedia = 'wikipedia/wiki-topcats.txt'
+    youtube = 'youtube/com-youtube.ungraph.txt'
+
+    data_path = '../../stream_graph_data/networks_ground_truth_communities/'
+    network_name = amazon
+
     # build networkx graph from file
-    g = buildGraph(data_path, email)
+    g = buildGraph(data_path, network_name)
     print('')
     
     # plot image of the graph and get info about size, density, etc
-    plotGraph(g, email)
+    plotGraph(g, network_name)
     print('graph saved to png')
     print('')
     
     # calculate evaluation scores for several combination of input parameters 
     # and save scores (dict) as pkl file
     print('calculating scores for threshold combinations')
-    d = thresholdSearch(g, network_name = email, 
+    d = thresholdSearch(g, network_name = network_name, 
                         initial_start=0, initial_stop=0.5, initial_num=20, 
                         merging_start=0, merging_stop=1, merging_num=20, log=False)
     
 
     # load scores (dict) from pkl file
-    # with open(data_path + email + '.pkl', 'rb') as f:
+    # with open(data_path + network_name + '.pkl', 'rb') as f:
     #     data = pickle.load(f)
 
     # turn scores (dict) into dataframe
@@ -229,5 +230,5 @@ if __name__ == "__main__":
     print('')
 
     # plot threshold combination against scores and save image to png
-    plotScores(df, email)
+    plotScores(df, network_name)
     print('plot saved to png')
