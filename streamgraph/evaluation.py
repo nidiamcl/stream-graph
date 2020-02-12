@@ -19,6 +19,14 @@ import seaborn as sns
 import warnings
 warnings.filterwarnings("ignore")
 
+amazon = 'amazon/com-amazon.ungraph.txt'
+email = 'email/email-Eu-core.txt'
+dblp = 'dblp/com-dblp.ungraph.txt'
+wikipedia = 'wikipedia/wiki-topcats.txt'
+youtube = 'youtube/com-youtube.ungraph.txt'
+
+data_path = '../../stream_graph_data/networks_ground_truth_communities/'
+
 def buildGraph(data_path, network_name):
     ''' builds networkx graph from file and returns it as a networkx object '''
   
@@ -179,13 +187,13 @@ def plotScores(df, network_name, data_path=data_path):
 
 if __name__ == "__main__":
 
-    amazon = 'amazon/com-amazon.ungraph.txt'
-    email = 'email/email-Eu-core.txt'
-    dblp = 'dblp/com-dblp.ungraph.txt'
-    wikipedia = 'wikipedia/wiki-topcats.txt'
-    youtube = 'youtube/com-youtube.ungraph.txt'
+    # amazon = 'amazon/com-amazon.ungraph.txt'
+    # email = 'email/email-Eu-core.txt'
+    # dblp = 'dblp/com-dblp.ungraph.txt'
+    # wikipedia = 'wikipedia/wiki-topcats.txt'
+    # youtube = 'youtube/com-youtube.ungraph.txt'
 
-    data_path = '../../stream_graph_data/networks_ground_truth_communities/'
+    # data_path = '../../stream_graph_data/networks_ground_truth_communities/'
     network_name = amazon
 
     # build networkx graph from file
