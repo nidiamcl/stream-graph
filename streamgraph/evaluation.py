@@ -199,7 +199,6 @@ if __name__ == "__main__":
     # calculate evaluation scores for several combination of input parameters 
     # and save scores (dict) as pkl file
     print('calculating scores for threshold combinations')
-    print('')
     d = thresholdSearch(g, network_name = email, 
                         initial_start=0, initial_stop=0.5, initial_num=20, 
                         merging_start=0, merging_stop=1, merging_num=20, log=False)
@@ -227,6 +226,8 @@ if __name__ == "__main__":
     communities = louvain(g)
     mod = evaluation.newman_girvan_modularity(g,communities)
     print('score with louvain: ' + str(mod.score))
+    print('')
 
     # plot threshold combination against scores and save image to png
     plotScores(df, email)
+    print('plot saved to png')
