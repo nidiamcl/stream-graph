@@ -16,6 +16,9 @@ import pickle
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+import warnings
+warnings.filterwarnings("ignore")
+
 amazon = 'amazon/com-amazon.ungraph.txt'
 email = 'email/email-Eu-core.txt'
 dblp = 'dblp/com-dblp.ungraph.txt'
@@ -182,19 +185,24 @@ def plotScores(df, network_name, data_path=data_path):
     plt.savefig(data_path + network_name + 'scores.png')
 
 
-
+if __name__ == "__main__":
+    
     # build networkx graph from file
-    # g = buildGraph(data_path, email)
+    g = buildGraph(data_path, email)
+    print('')
     
     # plot image of the graph and get info about size, density, etc
-    # plotGraph(g, email)
+    plotGraph(g, email)
+    print('graph saved to png')
+    print('')
     
     # calculate evaluation scores for several combination of input parameters 
     # and save scores (dict) as pkl file
-
-    # d = thresholdSearch(g, network_name = email, 
-    #                     initial_start=0, initial_stop=0.5, initial_num=3, 
-    #                     merging_start=0, merging_stop=1, merging_num=3, log=False)
+    print('calculating scores for threshold combinations')
+    print('')
+    d = thresholdSearch(g, network_name = email, 
+                        initial_start=0, initial_stop=0.5, initial_num=20, 
+                        merging_start=0, merging_stop=1, merging_num=20, log=False)
     
 
     # load scores (dict) from pkl file
@@ -202,4 +210,23 @@ def plotScores(df, network_name, data_path=data_path):
     #     data = pickle.load(f)
 
     # turn scores (dict) into dataframe
-    # df = pd.DataFrame.from_dict(d, orient='index')
+    df = pd.DataFrame.from_dict(d, orient='index')
+
+    # sort by score to see best score
+    df = df.sort_values(by='score', ascending=False)
+    df.head()
+
+    print('highest score: ' + str(df['score'].iloc[0]))
+    print('initial threshold: ' + str(df['initial_threshold'].iloc[0]))
+    print('merging threshold: ' + str(df['merging_threshold'].iloc[0]))
+    print('clusters initially found: ' + str(df['clusters_found'].iloc[0]))
+    print('clusters merged: ' + str(df['clusters_merged'].iloc[0]))
+    print('remaining clusters: ' + str(df['remaining_clusters'].iloc[0]))
+
+    # score with Louvain
+    communities = louvain(g)
+    mod = evaluation.newman_girvan_modularity(g,communities)
+    print('score with louvain: ' + str(mod.score))
+
+    # plot threshold combination against scores and save image to png
+    plotScores(df, email)
