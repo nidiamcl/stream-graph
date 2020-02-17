@@ -200,9 +200,9 @@ if __name__ == "__main__":
     print('')
     
     # plot image of the graph and get info about size, density, etc
-    plotGraph(g, network_name)
-    print('graph saved to png')
-    print('')
+    # plotGraph(g, network_name)
+    # print('graph saved to png')
+    # print('')
     
     # calculate evaluation scores for several combination of input parameters 
     # and save scores (dict) as pkl file
