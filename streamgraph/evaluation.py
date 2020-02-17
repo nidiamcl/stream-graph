@@ -12,6 +12,7 @@ import numpy as np
 from tqdm import tqdm
 import pandas as pd
 import pickle
+import argparse
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -187,7 +188,12 @@ def plotScores(df, network_name, data_path=data_path):
 
 if __name__ == "__main__":
 
-    network_name = amazon
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument("-n", required=True, action='store')
+    # args = parser.parse_args()
+    # network_name = args.n
+
+    network_name = email
 
     # build networkx graph from file
     g = buildGraph(data_path, network_name)
@@ -202,8 +208,8 @@ if __name__ == "__main__":
     # and save scores (dict) as pkl file
     print('calculating scores for threshold combinations')
     d = thresholdSearch(g, network_name = network_name, 
-                        initial_start=0, initial_stop=0.5, initial_num=20, 
-                        merging_start=0, merging_stop=1, merging_num=20, log=False)
+                        initial_start=0, initial_stop=0.5, initial_num=10, 
+                        merging_start=0, merging_stop=1, merging_num=10, log=True)
     
 
     # load scores (dict) from pkl file

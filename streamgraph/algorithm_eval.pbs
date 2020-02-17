@@ -1,0 +1,13 @@
+#!/bin/bash
+
+#PBS -l nodes=1:ppn=8
+#PBS -l walltime=01:00:00
+#PBS -N evaluation
+#PBS -j oe
+#PBS -M nvaquera@unm.edu
+
+module load anaconda
+source activate cdlib_experiments
+
+cd $PBS_O_WORKDIR
+python evaluation.py
