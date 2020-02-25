@@ -29,7 +29,7 @@ youtube = 'youtube/com-youtube.ungraph.txt'
 data_path = '../../stream_graph_data/networks_ground_truth_communities/'
 
 def buildGraph(data_path, network_name):
-    ''' builds networkx graph from file and returns it as a networkx object '''
+    ''' builds networkx graph from file with edges per node and returns it as a networkx object '''
   
     with open(data_path + network_name) as f:
         
@@ -86,9 +86,9 @@ def buildGraph(data_path, network_name):
     
     return graph
 
-def plotGraph(graph, network_name, data_path=data_path):
+def plotGraph(graph, network_name, color='#A4CACA', out_path=data_path):
     plt.figure(3,figsize=(20,20))
-    nx.draw(graph, with_labels=True, node_color='#A4CACA', figsize=(500,500), node_size=500, font_size=6)
+    nx.draw(graph, with_labels=True, node_color=color, figsize=(500,500), node_size=500, font_size=6)
     plt.savefig(data_path + network_name + 'graph.png')
     
 def thresholdSearch(graph, network_name, data_path=data_path, initial_start=0, initial_stop=1, initial_num=5, merging_start=0, merging_stop=1, merging_num=5, log=False):
@@ -164,7 +164,8 @@ def thresholdSearch(graph, network_name, data_path=data_path, initial_start=0, i
         else:
             pass
 
-    with open(data_path + network_name + '.pkl', 'wb') as f:
+    network_name = network_name.split('.')[1]
+    with open(data_path + network_name + 'scores'+ '.pkl', 'wb') as f:
         pickle.dump(scores, f)
 
     return scores
@@ -177,7 +178,7 @@ def plotScores(df, network_name, data_path=data_path):
                         c=df['score'], s=40, cmap="Spectral") #set style options
 
     # #set limits
-    plt.xlim(-0.04, 0.55)
+    plt.xlim(-0.04, 1.15)
     plt.ylim(-0.04, 1.15)
 
     #add a color bar
