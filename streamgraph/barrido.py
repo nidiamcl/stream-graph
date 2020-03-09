@@ -2,33 +2,58 @@ from evaluation import *
 import matplotlib.pyplot as plt
 import seaborn as sb
 
-data_path = '../../stream_graph_data/built_networks_nx/'
-out_path = '../../stream_graph_data/experiments/'
+with open('../../stream_graph_data/thresholds_small_for_newman_mod.csv') as f:
+    lines = f.readlines()
+    lines = [line.strip().split(',') for line in lines]
 
-all_files = [f for f in listdir(data_path) if isfile(join(data_path, f))]
+data_path = '../../stream_graph_data/nx_graphs/small/'
 
-for f in all_files:
-    network_name = f
+# get all files in datapath 
+# all_files = [f for f in listdir(data_path) if isfile(join(data_path, f))]
+
+step = 1/9
+
+with open('../../stream_graph_data/thresholds_small_for_newman_mod.csv') as f:
+    networks = f.readlines()
+    networks = [network.strip().split(',') for network in networks]
+
+for network in networks:
+    network_name = network[0] + '.pkl'
+    init = float(network[1])
+    merg = float(network[2])
+    
     g = nx.read_gpickle(data_path + network_name)
-    g.name = network_name
+    g.name = network_name.split('.')[0]
     
     info = nx.info(g)
     density = nx.density(g)
     print(info)
     print('density: ' + str(density))
           
-    d = thresholdSearch(g, network_name = network_name, 
-                    initial_start=0, initial_stop=1, initial_num=10, 
-                    merging_start=0, merging_stop=1, merging_num=10, log=False)
+    # thresholdSearch function returns the scores (dict) with scores and info about clusters 
+    # for every combination of initial and merging threshold values
+    # also saves all scores to pkl
     
-        # turn scores (dict) into dataframe
+    
+    d = thresholdSearch(g, network_name = network_name, 
+                    initial_start=init-step, initial_stop=init+step, initial_num=10, 
+                    merging_start=merg-step, merging_stop=merg+step, merging_num=10)
+    
+    # ----------------------------------------------------------------------------
+    # the part below will just create a file with thresholds for best modularity scores
+    # along with modularity produced by louvain
+
+    # turn scores (dict) into dataframe
     df = pd.DataFrame.from_dict(d, orient='index')
 
-    # sort by score to see best score
-    df = df.sort_values(by='score', ascending=False)
+    # sort by score to get best score
+    df = df.sort_values(by='newman_mod', ascending=False)
     initial_t = df.initial_threshold.iloc[0]
     merging_t = df.merging_threshold.iloc[0]
-    highest_score = df.score.iloc[0]
+    
+    # type of fitness here
+    highest_score = df.newman_mod.iloc[0]
+    
     initial_clusters = df.clusters_found.iloc[0]
     clusters_merged = df.clusters_merged.iloc[0]
     final_clusters = df.remaining_clusters.iloc[0]
@@ -45,17 +70,8 @@ for f in all_files:
     print('louvain: ' +  str(mod.score))
     print('')
     
-    f = open('output.txt', 'a+')
-    f.write('{}\n'.format(info))
-    f.write('density: {}\n'.format(density))
-    f.write('initial_threshold: {}\n'.format(initial_t))
-    f.write('merging_threshold: {}\n'.format(merging_t))
-    f.write('highest_score: {}\n'.format(highest_score))
-    f.write('initial_cluster: {}\n'.format(initial_clusters))
-    f.write('clusters_merged: {}\n'.format(clusters_merged))
-    f.write('final_clusters: {}\n'.format(final_clusters))
-    f.write('louvain_score: {}\n'.format(mod.score))
-    f.write('\n')
+    f = open('out_small_newman_mod.txt', 'a+')
+    f.write('{},{},{},{},{},{},{},{}\n'.format(density, initial_t, merging_t, highest_score, initial_clusters, clusters_merged, final_clusters, mod.score))
     f.close()
 
  

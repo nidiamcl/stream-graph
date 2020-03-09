@@ -93,6 +93,10 @@ def mergeFingerprints(fps, fmap, threshold=0.3):
 
     return merged_fps, merged_fmap
 
+# ------------------------------------------------------------------------------
+# -------------------ALGORITHM ENDS HERE ----------------------------------------
+# ------------------------------------------------------------------------------
+
 def drawClusters(g, fmap, color, title, fname):
     nodes = list(g.nodes)
     

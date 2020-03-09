@@ -10,4 +10,4 @@ module load anaconda
 source activate cdlib_experiments
 
 cd $PBS_O_WORKDIR
-python evaluation.py
+python barrido.py
