@@ -2,18 +2,16 @@ from evaluation import *
 import matplotlib.pyplot as plt
 import seaborn as sb
 
-with open('../../stream_graph_data/thresholds_small_for_newman_mod.csv') as f:
-    lines = f.readlines()
-    lines = [line.strip().split(',') for line in lines]
-
-data_path = '../../stream_graph_data/nx_graphs/small/'
+data_path = '../../stream_graph_data/nx_graphs/harvey/'
+# path to save all scores
+output_path = '../../stream_graph_data/clustered_networks/dotSimilarityHarvey/'
 
 # get all files in datapath 
 # all_files = [f for f in listdir(data_path) if isfile(join(data_path, f))]
 
 step = 1/9
 
-with open('../../stream_graph_data/thresholds_small_for_newman_mod.csv') as f:
+with open('../../stream_graph_data/thresholds_harvey_newman_mod.csv') as f:
     networks = f.readlines()
     networks = [network.strip().split(',') for network in networks]
 
@@ -35,7 +33,7 @@ for network in networks:
     # also saves all scores to pkl
     
     
-    d = thresholdSearch(g, network_name = network_name, 
+    d = thresholdSearch(g, network_name = network_name, output_path=output_path,
                     initial_start=init-step, initial_stop=init+step, initial_num=10, 
                     merging_start=merg-step, merging_stop=merg+step, merging_num=10)
     

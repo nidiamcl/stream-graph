@@ -21,7 +21,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 # path to save all scores
-output_path = '../../stream_graph_data/clustered_networks/dotSimilarity3/'
+output_path = '../../stream_graph_data/clustered_networks/dotSimilarityHarvey/'
 
 # path to save plots
 plots_path = '../../stream_graph_data/plots/'
