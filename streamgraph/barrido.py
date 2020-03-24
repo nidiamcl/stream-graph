@@ -2,8 +2,11 @@ from evaluation import *
 import matplotlib.pyplot as plt
 import seaborn as sb
 
+# data_path = '../../stream_graph_data/nx_graphs/harvey/'
 data_path = '../../stream_graph_data/nx_graphs/harvey/'
+
 # path to save all scores
+# output_path = '../../stream_graph_data/clustered_networks/dotSimilarityHarvey/'
 output_path = '../../stream_graph_data/clustered_networks/dotSimilarityHarvey/'
 
 # get all files in datapath 
@@ -11,7 +14,7 @@ output_path = '../../stream_graph_data/clustered_networks/dotSimilarityHarvey/'
 
 step = 1/9
 
-with open('../../stream_graph_data/thresholds_harvey_newman_mod.csv') as f:
+with open('../../stream_graph_data/harvey5.csv') as f:
     networks = f.readlines()
     networks = [network.strip().split(',') for network in networks]
 
@@ -69,7 +72,7 @@ for network in networks:
     print('')
     
     f = open('out_small_newman_mod.txt', 'a+')
-    f.write('{},{},{},{},{},{},{},{}\n'.format(density, initial_t, merging_t, highest_score, initial_clusters, clusters_merged, final_clusters, mod.score))
+    f.write('{},{},{},{},{},{},{},{},{}\n'.format(g.name, density, initial_t, merging_t, highest_score, initial_clusters, clusters_merged, final_clusters, mod.score))
     f.close()
 
  
