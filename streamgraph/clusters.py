@@ -15,6 +15,8 @@ def getSimilarity(fp, vec):
     return vec.dot(fp).max() / vec.sum()
 
 def updateFingerprint(fp, vec, count):
+    ''' updates a fingerprint when a node vector is added to the cluster
+        weighted merge of the node vector with the fingerprint '''
     if isinstance(vec, spmatrix):
         return (fp * ((count-1)/count)) + (vec.A.astype(np.float) * (1/count))
     else:
@@ -30,7 +32,10 @@ def findClusters(g, threshold=0.3):
         ...
     }
     '''
+    # mapping of nodes to fingerprints to keep track of what node belongs to what fp
     fmap = defaultdict(list)
+    
+    # I could (should?) be creating this matrix from edge tuples directly
     matrix = nx.to_numpy_matrix(g)
 
     ''' fingerprints '''
@@ -46,6 +51,7 @@ def findClusters(g, threshold=0.3):
             continue
         
         # get best scoring fingerprint
+        # sorted and pop gets me the best scoring one (I should find something more elegant)
         score, fi, fp = sorted([(getSimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)]).pop() 
         
         if score > threshold:
@@ -61,6 +67,10 @@ def findClusters(g, threshold=0.3):
     return fps, fmap
 
 def mergeFingerprints(fps, fmap, threshold=0.3):
+    '''
+    finds similar clusters and merges them  
+    '''
+    # same kind of mapping of nodes to fingerprints
     merged_fps = []
     merged_fmap = {}
 
@@ -93,9 +103,18 @@ def mergeFingerprints(fps, fmap, threshold=0.3):
 
     return merged_fps, merged_fmap
 
-# ------------------------------------------------------------------------------
-# -------------------ALGORITHM ENDS HERE ----------------------------------------
-# ------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------
+# -------------------ALGORITHM ENDS HERE, THE REST IS JUST LAST MINUTE PLOTTING --------------------------------
+# --------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------
+# --------------------------------------------------------------------------------------------------------------
 
 def drawClusters(g, fmap, color, title, fname):
     nodes = list(g.nodes)
