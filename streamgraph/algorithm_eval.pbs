@@ -1,9 +1,12 @@
 #!/bin/bash
-
+## declare a name for this job to be sample_job
+#PBS -N dotSim_mutualInfo
+# request 1 node with 8 cores
 #PBS -l nodes=1:ppn=8
-#PBS -l walltime=01:00:00
-#PBS -N evaluation
-#PBS -j oe
+# request n hours
+#PBS -l cput=48:00:00
+# request 32 GB of memory
+#PBS -l mem=32GB
 #PBS -M nvaquera@unm.edu
 
 module load anaconda

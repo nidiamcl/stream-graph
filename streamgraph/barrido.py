@@ -18,7 +18,7 @@ output_path = '../../stream_graph_data/clustered_networks/dotSim_mutualInfo/'
 
 step = 1/9
 
-with open('../../stream_graph_data/harvey7.csv') as f:
+with open('../../stream_graph_data/harvey1.csv') as f:
     networks = f.readlines()
     networks = [network.strip().split(',') for network in networks]
 
