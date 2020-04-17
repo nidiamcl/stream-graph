@@ -7,12 +7,17 @@ import matplotlib.pyplot as plt
 from collections import defaultdict
 from scipy.sparse import csr_matrix, spmatrix
 import numpy as np
+from sklearn.metrics import *
+from scipy import spatial
 
-def getSimilarity(fp, vec):
+def dotSimilarity(fp, vec):
     ''' gets similarity between a fingerprint and a row vector
         the number of non-zero components they share 
         divided by the total number of non-zero components of the vector '''
     return vec.dot(fp).max() / vec.sum()
+
+def cosineSimilarity(fp,vec):
+    return 1 - spatial.distance.cosine(fp, vec)
 
 def updateFingerprint(fp, vec, count):
     ''' updates a fingerprint when a node vector is added to the cluster
@@ -50,9 +55,14 @@ def findClusters(g, threshold=0.3):
             fps.append(row.A[0].astype(np.float))
             continue
         
-        # get best scoring fingerprint
+        # get best scoring fingerprint using dotSimilarity
         # sorted and pop gets me the best scoring one (I should find something more elegant)
-        score, fi, fp = sorted([(getSimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)]).pop() 
+        score, fi, fp = sorted([(dotSimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)]).pop() 
+
+        # get best scoring fingerprint using cosine Similarity
+        # sorted and pop gets me the best scoring one (I should find something more elegant)
+        # score, fi, fp = sorted([(cosineSimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)]).pop() 
+
         
         if score > threshold:
             # map node to fingerprint
@@ -79,8 +89,13 @@ def mergeFingerprints(fps, fmap, threshold=0.3):
         # skip fingerprints that have already been merged
         if ai in processed: continue
 
-        # get best scoring fingerprint
-        score, bi, bfp = sorted([(getSimilarity(afp, bfp), bi, bfp) for bi, bfp in enumerate(fps) if bi != ai]).pop()
+        # get best scoring fingerprint using dotSimilarity
+        # score, bi, bfp = sorted([(dotSimilarity(afp, bfp), bi, bfp) for bi, bfp in enumerate(fps) if bi != ai]).pop()
+
+        # get best scoring fingerprint using mutual_info_score
+        # normalized_mutual_info_score(x,y) 
+        # adjusted_mutual_info_score(x,y)
+        score, bi, bfp = sorted([(normalized_mutual_info_score(afp, bfp), bi, bfp) for bi, bfp in enumerate(fps) if bi != ai]).pop()
 
         # same for second fingerprint
         if bi in processed: continue
