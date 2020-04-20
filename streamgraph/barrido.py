@@ -6,6 +6,7 @@ from cdlib.algorithms import louvain, label_propagation
 
 # data_path = '../../stream_graph_data/nx_graphs/small/'
 data_path = '../../stream_graph_data/nx_graphs/harvey/'
+# data_path = '../../stream_graph_data/nx_graphs/weird/'
 
 # path to save all scores
 # output_path = '../../stream_graph_data/clustered_networks/dotSimilarityHarvey/'
@@ -18,7 +19,7 @@ output_path = '../../stream_graph_data/clustered_networks/dotSim_mutualInfo/'
 
 step = 1/9
 
-with open('../../stream_graph_data/harvey1.csv') as f:
+with open('../../stream_graph_data/harveyaug18.csv') as f:
     networks = f.readlines()
     networks = [network.strip().split(',') for network in networks]
 
