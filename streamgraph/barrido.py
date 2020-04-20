@@ -4,9 +4,14 @@ import seaborn as sb
 from cdlib import evaluation
 from cdlib.algorithms import louvain, label_propagation
 
+<<<<<<< HEAD
 # data_path = '../../stream_graph_data/nx_graphs/small/'
 data_path = '../../stream_graph_data/nx_graphs/harvey/'
 # data_path = '../../stream_graph_data/nx_graphs/weird/'
+=======
+data_path = '../../stream_graph_data/nx_graphs/small/'
+# data_path = '../../stream_graph_data/nx_graphs/harvey/'
+>>>>>>> 58b75baa11ef061b17b726d0800843e77ab0408c
 
 # path to save all scores
 # output_path = '../../stream_graph_data/clustered_networks/dotSimilarityHarvey/'
@@ -19,7 +24,11 @@ output_path = '../../stream_graph_data/clustered_networks/dotSim_mutualInfo/'
 
 step = 1/9
 
+<<<<<<< HEAD
 with open('../../stream_graph_data/harveyaug18.csv') as f:
+=======
+with open('../../stream_graph_data/graphs.csv') as f:
+>>>>>>> 58b75baa11ef061b17b726d0800843e77ab0408c
     networks = f.readlines()
     networks = [network.strip().split(',') for network in networks]
 
@@ -78,7 +87,6 @@ for network in networks:
     communities = louvain(g)
     lou_mod = evaluation.newman_girvan_modularity(g,communities)
     print('louvain: ' +  str(lou_mod.score))
-    print('')
 
     coms = label_propagation(g)
     lp_mod = evaluation.newman_girvan_modularity(g,coms)
