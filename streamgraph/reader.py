@@ -23,8 +23,8 @@ class GraphReader:
     self.size = self.comm.Get_size()
 
     # this is just for testing
-    self.rank = 10
-    self.size = 20
+    #self.rank = 10
+    #self.size = 20
 
     tsv_file = open(partition_path)
     read_tsv = csv.reader(tsv_file, delimiter=",")
