@@ -170,14 +170,17 @@ if __name__ == "__main__":
     file = '../sample_data/test.tsv'
     g = nx.read_edgelist(file, delimiter=' ', nodetype=int, edgetype=int, create_using=nx.Graph())
     nodes = g.nodes()
+    print(nodes)
     
 #     print(nx.info(g))
 #     print('Density: ' + str(nx.density(g)))
 
     gr = GraphReader('../sample_data/test.tsv', '../sample_data/test_node_edges.txt')
     csr_matrix = gr.read() # csr sparse matrix from the reader
+    print(np.array(csr_matrix.todense()))
     
     csr_networkx = nx.to_scipy_sparse_matrix(g, format='csr', dtype=np.float64) # csr sparse matrix from networkx
+    print(np.array(csr_networkx.todense()))
         
     # choose thresholds
     first_th = 0.3

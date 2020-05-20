@@ -1,37 +1,45 @@
-from clusters import *
 from reader import *
 from mpi4py import MPI
+from find_clusters import *
 
-gr = GraphReader('../sample_data/protein.tsv', '../sample_data/protein_node_edges.txt')
-g = gr.read() # sparse matrix
-
-# here you will call findclusters on g
-# findClusters(g, threshold1)
 
 # mpi stuff
-
-# mergeFingerprints(....)
-
-
-'''
-# you need a networkx graph, this is a small one for testing
-g = nx.read_gpickle('../sample_data/harveysept17.pkl')
-print(nx.info(g))
-print(nx.density(g))
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
 
 # choose thresholds
-first_th = 0.222
-second_th = 0.05
+first_th = 0.3
+second_th = 0.7
 
-# find initial clusters
-# findClusters returns fps (list) and fmap (dict)
-fps, fmap = findClusters(g, first_th)
-print('clusters found: ' + str(len(fmap)))
+gr = GraphReader('../sample_data/test.tsv', '../sample_data/test_node_edges.txt')
+csr_matrix = gr.read() # csr sparse matrix from the reader
+nodes = gr.local_vertices
 
-# merge similar clusters
-merged_fps, merged_fmap = mergeFingerprints(fps, fmap, second_th)
-print('clusters merged: ' + str(len(fmap)-len(merged_fmap)))
-print('remaining clusters: ' + str(len(merged_fmap)))
+# find initial clusters, findClusters returns fps (list) and fmap (dict)
+fps, fmap = findClusters(nodes, csr_matrix, similarity='nmi', threshold=first_th)
 
-# that's it
-'''
+''' ------------------- START MPI DATA TRANSFER ------------------------'''
+local_num_fps = len(fps)
+num_fps_per_rank = comm.gather(local_num_fps, root=0)
+
+if rank == 0:
+    for r, num_fps in enumerate(num_fps_per_rank):
+        if r != 0:
+            for _ in range(num_fps_per_rank[r]):
+                f = np.empty(len(fps[0]), dtype=np.float64)
+                comm.Recv(f, source=r, tag=0)
+                fps.append(f)
+                members = comm.recv(source=r, tag=1)
+                fmap[len(fps)-1] = members
+else:
+    for i, f in enumerate(fps):
+        comm.Send(f, dest=0, tag=0)
+        comm.send(fmap[i], dest=0, tag=1)
+''' ------------------- END MPI DATA TRANSFER ------------------------'''
+
+if rank == 0:
+    # merge similar clusters
+    merged_fps, merged_fmap = mergeFingerprints(fps, fmap, similarity='nmi', threshold=second_th)
+    print('clusters merged: ' + str(len(fmap)-len(merged_fmap)))
+    print('remaining clusters: ' + str(len(merged_fmap)))
