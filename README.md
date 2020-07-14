@@ -2,7 +2,9 @@
 
 ### SERIAL 
 Contains the serial implementation of the algorithm and code for experiments related to the main algorithm
+
 Required libraries are numpy, networkx, pandas, scipy, pickle, plotly, matplotlib, sklearn
+
 The evaluation experiments require cdlb https://cdlib.readthedocs.io/en/latest/index.html
 
 To create a virtual environment with virtualenv
