@@ -11,7 +11,7 @@ virtualenv -p python3.7 python37_env
 
 source python37_env/bin/activate
 
-pip install cdlib, numpy, pandas 
+pip install cdlib
 
 You can also create a virtual environment with anaconda 
 
