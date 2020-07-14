@@ -23,6 +23,7 @@ You can also create a virtual environment with anaconda
 ##### python run_clustering_serial.py --n 'zebra' --t1 0.5 --t2 0.6
 
 flags:
+
 --n   network
 
 --t1  initial threshold
