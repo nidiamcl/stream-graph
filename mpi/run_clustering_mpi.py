@@ -76,4 +76,4 @@ if rank == 0:
     pickle.dump(merged_fmap, open(clusters_path + '{}_fmap.pkl'.format(network), 'wb'))
 
 
-# mpiexec -n 4 python get_good_clusters_mpi.py
+# mpiexec -n 4 python run_clustering_mpi.py
