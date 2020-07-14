@@ -20,7 +20,7 @@ You can also create a virtual environment with anaconda
 
 #### Example of how to run: 
 
-python run_clustering_serial.py --n 'harveysept13' --t1 0.1111111111111111 --t2 0.6666666666666666
+##### python run_clustering_serial.py --n 'zebra' --t1 0.5 --t2 0.6
 
 flags:
 --n   network
@@ -38,7 +38,7 @@ Contains the mpi implementation of the algorithm (without broadcasting or sharin
 
 #### Example of how to run: 
 
-mpiexec -n 2 python run_clustering_mpi.py --n 'harveysept13' --t1 0.1111111111111111 --t2 0.6666666666666666
+##### mpiexec -n 2 python run_clustering_mpi.py --n 'zebra' --t1 0.3 --t2 0.6
 
 flags:
 
