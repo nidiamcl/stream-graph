@@ -1,6 +1,7 @@
 # stream-graph
 
-SERIAL: contains the serial implementation of the algorithm and code for experiments related to the main algorithm
+### SERIAL 
+Contains the serial implementation of the algorithm and code for experiments related to the main algorithm
 Required libraries are numpy, networkx, pandas, scipy, pickle, plotly, matplotlib, sklearn
 The evaluation experiments require cdlb https://cdlib.readthedocs.io/en/latest/index.html
 
@@ -20,8 +21,9 @@ flags:
 --t1  initial threshold
 --t2  merging threhsold 
 
-MPI: contains the mpi implementation of the algorithm (without broadcasting or sharing fingerprints yet)
-requires mpi4py,h5py and previous libraries from the serial version
+### MPI
+Contains the mpi implementation of the algorithm (without broadcasting or sharing fingerprints yet)
+Requires mpi4py,h5py and previous libraries from the serial version
 
 Example of how to run: 
 
@@ -33,4 +35,6 @@ flags:
 --t1  initial threshold
 --t2  merging threhsold 
 
-SPARKL: contains code for graph generation in Spark
+### SPARK
+Contains code for graph generation in Spark
+Requires pyspark
