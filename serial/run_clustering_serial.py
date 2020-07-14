@@ -63,7 +63,7 @@ def runAlgorithm(edge_list_path, node_edges_path, network, sim1, sim2, t1, t2):
     return partition, merged_fmap, merged_fps
 
 
-# --------------------------------------------------------------------------
+# ------------------------------------------------------------------------------------------------------------
 
 # parse arguments
 parser = argparse.ArgumentParser()
@@ -76,30 +76,32 @@ network = args.n
 t1 = args.t1
 t2 = args.t2
 
-edge_list_path = '../../../Code/stream_graph_data/all_networks/'
-node_edges_path = '../../../Code/stream_graph_data/node_edges_all_networks/'
-thresholds_file = '../../../Code/stream_graph_data/newman_mod_thresholds_for_best_scores.txt'
-clusters_path = '../../../Code/stream_graph_data/clustered_networks/good_clusters/best_scores_newman'
-# clusters_path = '../../../Code/stream_graph_data/clustered_networks/good_clusters/best_scores_newman_2/'
+# edge_list_path: path to file with the list of edges e.g., 
+# 1 2       i.e., there is an edge between node 1 and 2
+# 1 3
+# 2 3
+# 2 5
+# ....
+edge_list_path = '../sample_data/'
+
+# node_edges_path: path to file number of edges per node (needed for reader to read in all edges on a node)
+# 1,364        i.e., node 1 has 364 edges (there will be 364 adjacent lines to read in for this node)
+# 2,254
+# 3,202
+# 4,221
+# 5,103
+node_edges_path = '../sample_data/'
+
+# clusters_path: where resulting clusters will be saves
+clusters_path = '../sample_data/'
 
 sim1='dotsim'
 sim2='nmi'
 
-# with open(thresholds_file, 'r') as f:
-#     lines = f.readlines()
-#     lines = [line.strip() for line in lines]
-#     networks = [line.split(',') for line in lines]
-#     networks = [ [n[0],n[2],n[3]] for n in networks]
-
-# for net in networks:
-#     network = net[0]
-#     t1 =  float(net[1])
-#     t2 =  float(net[2])
-    
 start = timer()
 partition, merged_fmap, merged_fps = runAlgorithm(edge_list_path, node_edges_path, network, sim1=sim1 , sim2=sim2, t1=t1, t2=t2)
 end = timer()
-print(timedelta(seconds=end-start))
+print('walltime: ' + str(timedelta(seconds=end-start)))
 print('')
 
 with open(clusters_path + network + '_fmap'+ '.pkl', 'wb') as f:
@@ -110,3 +112,7 @@ with open(clusters_path + network + '_fps'+ '.pkl', 'wb') as f:
     
 with open(clusters_path + network + '_partition'+ '.pkl', 'wb') as f:
     pickle.dump(partition, f)
+
+
+# how to run: 
+# python run_clustering_serial.py --n 'zebra' --t1 0.5 --t2 0.6

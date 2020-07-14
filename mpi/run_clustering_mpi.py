@@ -26,9 +26,24 @@ size = comm.Get_size()
 if rank == 0:
     start = MPI.Wtime()
 
-edge_list_path = '../../../Code/stream_graph_data/all_networks/'
-node_edges_path = '../../../Code/stream_graph_data/node_edges_all_networks/'
-clusters_path = '../../../Code/stream_graph_data/clustered_networks/mpi_clusters/best_scores_newman/4_process/'
+# edge_list_path: path to file with the list of edges e.g., 
+# 1 2       i.e., there is an edge between node 1 and 2
+# 1 3
+# 2 3
+# 2 5
+# ....
+edge_list_path = '../sample_data/'
+
+# node_edges_path: path to file number of edges per node (needed for reader to read in all edges on a node)
+# 1,364        i.e., node 1 has 364 edges (there will be 364 adjacent lines to read in for this node)
+# 2,254
+# 3,202
+# 4,221
+# 5,103
+node_edges_path = '../sample_data/'
+
+# clusters_path: where resulting clusters will be saves
+clusters_path = '../sample_data/'
 
 sim1='dotsim'
 sim2='nmi'
@@ -76,4 +91,5 @@ if rank == 0:
     pickle.dump(merged_fmap, open(clusters_path + '{}_fmap.pkl'.format(network), 'wb'))
 
 
-# mpiexec -n 4 python run_clustering_mpi.py
+# how to run:
+# mpiexec -n 2 python run_clustering_mpi.py --n 'zebra' --t1 0.3 --t2 0.6
