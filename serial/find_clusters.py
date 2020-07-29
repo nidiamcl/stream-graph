@@ -113,6 +113,86 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5):
             
     return fps, fmap
 
+
+def findProbabilisticClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5):
+    ''' 
+    input
+        nodes: list of nodes
+        csr_matrix: sparse adjacency matrix
+        threshold: initial merging threshold
+        
+    returns:
+        fps:  list of all found fingerprints
+        fmap: (dict) fingerprint mapping of nodes to fingerprints 
+              to keep track of what node belongs to what fp
+        {
+            fp_index: [
+                row_index,
+                ...
+            ],
+            ...
+        }
+        '''
+    fmap = defaultdict(list)
+
+    ''' fingerprints '''
+    fps = []
+
+    for ri, node in enumerate(nodes):
+        row = csr_matrix[ri]
+        
+        # initialize fingerprints
+        if len(fps) == 0:
+            fmap[len(fps)].append(node)
+            fps.append(row.A[0].astype(np.float))
+            continue
+        
+        # get best scoring fingerprint using dotSimilarity
+        if similarity == 'dotsim':        
+            # sorted and pop gets me the best scoring one (find something more elegant!)
+            similarfps = sorted([(dotSimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)])
+
+        # get best scoring fingerprint using cosine Similarity
+        elif similarity == 'cosine':
+            similarfps = sorted([(cosineSimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)])
+        
+        # get best scoring fingerprint using mutual_info_score
+        elif similarity == 'nmi':
+            similarfps = sorted([(NMISimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)])  
+
+            
+            
+        score, fi, fp = similarfps.pop() # pop the last one
+        total_score=score
+        not_assigned=True  # use this to assign a node only to one cluster
+            
+        if score < threshold:  # if less threshold, add as a new fingerprint
+            fmap[len(fps)].append(node)
+            fps.append(row.A[0].astype(np.float))
+        else:
+            for k in reversed(range(len(similarfps))):
+                if similarfps[k][0] >= threshold: 
+                    total_score+=similarfps[k][0]
+                else:
+                    break
+        
+        while score > threshold:  # otherwise, pop as long as score > threshold and add to other fingerprints proportionally
+            
+            proportion=score/total_score
+            # map node to fingerprint
+            if not_assigned: # use this flag to assign a node only to one cluster, remove for multiples
+                fmap[fi].append(node)
+                not_assigned=False
+                
+            # update fingerprint with row weights
+            fp[:] = updateFingerprint(fp, row*proportion, len(fmap[fi]))
+            
+            score, fi, fp = similarfps.pop()
+            
+            
+    return fps, fmap
+
+
 def mergeFingerprints(fps, fmap, similarity='dotsim', threshold=0.3):
     '''
     finds similar clusters and merges them  
