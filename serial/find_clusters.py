@@ -25,6 +25,12 @@ def dotSimilarity(fp, vec):
         divided by the total number of non-zero components of the vector '''
     return vec.dot(fp).max() / vec.sum()
 
+def jaccardSimilarity(fp, vec):
+    ''' gets similarity between a fingerprint and a row vector
+        the number of non-zero components they share 
+        divided by the total number of non-zero components of the vector '''
+    return vec.dot(fp).max() / np.add(vec,fp).sum()
+
 def cosineSimilarity(fp,vec):
     '''' gets similarity between a fingerprint and a row vector'''
     if scipy.sparse.isspmatrix_csr(vec):
