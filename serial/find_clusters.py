@@ -45,17 +45,17 @@ def NMISimilarity(fp,vec):
     else:
         return normalized_mutual_info_score(fp, vec)
 
-def updateFingerprint(fp, vec, count):
+def updateFingerprint(fp, vec, countfp, countvec=1):
     ''' updates a fingerprint when a node vector is added to the cluster
         weighted merge of the node vector with the fingerprint '''
+    count_total=countfp+countvec;
+    propfp=countfp/count_total
+    propvec=countvec/count_total
     
-    # for sparse matrices in csr format
-    if scipy.sparse.isspmatrix_csr(vec):
-        return (fp * ((count-1)/count)) + (vec.A.astype(np.float) * (1/count))
-    
-    # for numpy.matrix
+    if isinstance(vec, spmatrix):
+        return (fp * propfp + (vec.A.astype(np.float) * propvec))
     else:
-        return (fp * ((count-1)/count)) + (vec*(1/count))
+        return (fp * propfp + (vec*propvec))
     
     
 
@@ -199,7 +199,65 @@ def findProbabilisticClusters(nodes, csr_matrix, similarity='dotsim', threshold=
     return fps, fmap
 
 
-def mergeFingerprints(fps, fmap, similarity='dotsim', threshold=0.3):
+def mergeFingerprints(fps_temp, fmap_temp, similarity='dotsim', threshold=0.3):
+    '''
+    finds similar clusters and merges them  
+    '''
+    fmap = {}
+    fps=list(fps_temp)
+    # sort fingerprints from less to more density
+    idxFP = np.argsort([ len(fmap_temp[listNodes]) for listNodes in fmap_temp])
+    # sort fingerprints and change index to map
+    for i in range(len(idxFP)):
+        fmap[i] = fmap_temp[idxFP[i]]
+        fps[i] = fps_temp[idxFP[i]]
+    
+    # same kind of mapping of nodes to fingerprints
+    merged_fps = []
+    merged_fmap = {}
+
+    processed = []
+    for ai, afp in enumerate(fps):
+        # skip fingerprints that have already been merged
+        if ai in processed: continue
+
+        # dot similarity
+        if similarity == 'dotsim':
+            score, bi, bfp = sorted([(dotSimilarity(afp, bfp), bi, bfp) for bi, bfp in enumerate(fps) if bi != ai]).pop()
+
+        # normalized mutual info score
+        elif similarity == 'nmi':
+            score, bi, bfp = sorted([(NMISimilarity(afp, bfp), bi, bfp) for bi, bfp in enumerate(fps) if bi != ai]).pop()
+     
+        # cosine Similarity
+        elif similarity == 'cosine':
+            score, bi, bfp = sorted([(cosineSimilarity(afp, bfp), bi, bfp) for bi, bfp in enumerate(fps) if bi != ai]).pop() 
+                     
+                
+        # same for second fingerprint
+        if bi in processed: continue
+
+        if score > threshold:
+            # merge fingerprints
+            fps[bi] = updateFingerprint(afp, bfp, len(fmap[ai]), len(fmap[bi])) # merge in proportion of densities
+            fmap[bi] = list(set(fmap[bi] + fmap[ai]))
+            # mark as processed
+            processed += [ai]
+            
+            
+    # add fingerprints that were not merged
+    for i, fp in enumerate(fps):
+        if i not in processed:
+            merged_fps.append(fp)
+            merged_fmap[len(merged_fps) - 1] = fmap[i]
+
+    #print("Num nodes {}".format(sum([len(merged_fmap[listNodes]) for listNodes in merged_fmap])))
+    
+    return merged_fps, merged_fmap
+
+
+
+def mergeFingerprints_old(fps, fmap, similarity='dotsim', threshold=0.3):
     '''
     finds similar clusters and merges them  
     '''
