@@ -28,7 +28,7 @@ def dotSimilarity(fp, vec):
 def jaccardSimilarity(fp, vec):
     ''' gets similarity between a fingerprint and a row vector
         the number of non-zero components they share 
-        divided by the total number of non-zero components of the vector '''
+        divided by the union of non-zero components of both '''
     return vec.dot(fp).max() / np.add(vec,fp).sum()
 
 def cosineSimilarity(fp,vec):
