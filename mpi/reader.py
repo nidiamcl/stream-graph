@@ -36,10 +36,9 @@ class GraphReader:
     self.num_vertices = np.shape(partitions)[0]
     self.vertices = partitions[:,0]
     counts = partitions[:,1]
-    edges_ = np.sum(counts)
-    local_edge_count = math.ceil(edges_ / self.size)
+    local_vertex_count = math.ceil(self.num_vertices / self.size)
 
-    self.local_vertices = self.get_vertices(partitions, local_edge_count)
+    self.local_vertices = self.get_vertices(partitions, local_vertex_count)
     self.path = path
     # -----------------------------------------------------------
 
@@ -98,17 +97,14 @@ class GraphReader:
     return self.sparse_matrix
  
   # this will change
-  def get_vertices(self, partitions, local_edges):
+  def get_vertices(self, partitions, local_vertex_count):
     dist = [[] for i in range(self.size)]
     current_rank = 0
 
-    count = 0
     for i, entry in enumerate(partitions): 
       dist[current_rank].append(entry[0])
-      count += entry[1]
-      if count > local_edges:
+      if len(dist[current_rank]) == local_vertex_count:
         current_rank += 1
-        count = 0
 
     return dist[self.rank]
     

@@ -52,8 +52,8 @@ def updateFingerprint(fp, vec, count):
         return (fp * ((count-1)/count)) + (vec*(1/count))
     
     
-
-def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5):
+# broadcast_stride : broadcast every broadcast_stride steps
+def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcast_stride = 10):
     ''' 
     input
         nodes: list of nodes
@@ -72,7 +72,16 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5):
             ...
         }
         '''
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
     fmap = defaultdict(list)
+    counts = defaultdict(lambda : 0)
+
+    # will probably use these but not yet
+    ranks = defaultdict(lambda : 0)
+    indices = defaultdict(lambda : 0)
 
     ''' fingerprints '''
     fps = []
@@ -83,6 +92,7 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5):
         # initialize fingerprints
         if len(fps) == 0:
             fmap[len(fps)].append(node)
+            counts[len(fps)] = 1
             fps.append(row.A[0].astype(np.float))
             continue
         
@@ -104,13 +114,40 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5):
             
             # map node to fingerprint
             fmap[fi].append(node)
+            counts[fi] = counts[fi] + 1
             # update fingerprint with row weights
             fp[:] = updateFingerprint(fp, row, len(fmap[fi]))
-            
         else:
             fmap[len(fps)].append(node)
+            counts[len(fps)] = 1
             fps.append(row.A[0].astype(np.float))
-            
+
+        #-------------- MPI ------------#
+        if (ri + 1) % broadcast_stride == 0:
+            new_counts = []
+            new_fps = []
+            for i in range(size):
+                if i == rank:
+                    counts_list = [counts[i] for i in range(len(counts))]
+                    data = {
+                        'fps' : fps,
+                        'count' : counts_list
+                        }
+                else:
+                    data = None
+                    
+                data = comm.bcast(data, root = i)
+                
+                if i != rank:
+                    new_counts = new_counts + data['count']
+                    new_fps = new_fps + data['fps']
+
+        for f in new_fps:
+            fps.append(f)
+
+        #TODO decide how to merge otherwise this will blow up
+        #-------------- MPI ------------#
+
     return fps, fmap
 
 def mergeFingerprints(fps, fmap, similarity='dotsim', threshold=0.3):
