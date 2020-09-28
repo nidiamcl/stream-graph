@@ -1,5 +1,6 @@
 import networkx as nx
 import scipy as sp
+import copy
 import pickle
 import plotly.graph_objects as go
 import matplotlib.pyplot as plt
@@ -77,23 +78,30 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
     size = comm.Get_size()
 
     fmap = defaultdict(list)
-    counts = defaultdict(lambda : 0)
+    
+    fps_before = []
+    ranks_before = []
+    id_before = []
+    sizes_before = []
+    fmaps_before = []
 
-    # will probably use these but not yet
-    ranks = defaultdict(lambda : 0)
-    indices = defaultdict(lambda : 0)
-
-    ''' fingerprints '''
     fps = []
+    ranks = []
+    id_ = []
+    sizes = []
+    fmaps = []
 
+    fingerprints = []
+    fingerprints_before = []
+
+    # [fingerprint, rank, id, size, fmap]
+    ''' fingerprints '''
     for ri, node in enumerate(nodes):
         row = csr_matrix[ri]
-        
+    
         # initialize fingerprints
-        if len(fps) == 0:
-            fmap[len(fps)].append(node)
-            counts[len(fps)] = 1
-            fps.append(row.A[0].astype(np.float))
+        if len(fingerprints) == 0:
+            fingerprints.append([row.A[0].astype(np.float), rank, 0, 1, [node]])
             continue
         
         # get best scoring fingerprint using dotSimilarity
@@ -110,28 +118,33 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
             score, fi, fp = sorted([(NMISimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)]).pop()  
 
         if score > threshold:
-#             print(score, threshold)
-            
             # map node to fingerprint
-            fmap[fi].append(node)
-            counts[fi] = counts[fi] + 1
+            fmaps[fi].append(node)
+            sizes[fi] = sizes[fi] + 1
             # update fingerprint with row weights
-            fp[:] = updateFingerprint(fp, row, len(fmap[fi]))
+            fp[:] = updateFingerprint(fp, row, len(fmaps[fi]))
         else:
-            fmap[len(fps)].append(node)
-            counts[len(fps)] = 1
+            #fmap[len(fps)].append(node)
+            fmaps.append([node])
+            sizes.append(1)
+            id_.append(ri)
+            ranks.append(rank)
             fps.append(row.A[0].astype(np.float))
 
         #-------------- MPI ------------#
         if (ri + 1) % broadcast_stride == 0:
-            new_counts = []
             new_fps = []
+            new_ranks = []
+            new_id = []
+            new_sizes = []
             for i in range(size):
                 if i == rank:
-                    counts_list = [counts[i] for i in range(len(counts))]
+                    size_list = [sizes[i] for i in range(len(sizes))]
                     data = {
                         'fps' : fps,
-                        'count' : counts_list
+                        'size' : size_list,
+                        'id': id_,
+                        'ranks': ranks                
                         }
                 else:
                     data = None
@@ -139,21 +152,84 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
                 data = comm.bcast(data, root = i)
                 
                 if i != rank:
-                    new_counts = new_counts + data['count']
+                    new_sizes = new_sizes + data['size']
                     new_fps = new_fps + data['fps']
+                    new_id = new_id + data['id']
+                    new_ranks = new_ranks + data['ranks']
 
-        # add new fingerprints to fps
-        # and update the count
-        current_fps_size = len(fps)
-        for i,f in enumerate(new_fps):
-            fps.append(f)
-            counts[i+current_fps_size] = new_counts[i] 
+            # add new fingerprints to fps
+            # and update the count
+            for i in range(len(new_fps)):
+                fps.append(new_fps[i])
+                ranks.append(new_ranks[i])
+                id_.append(new_id[i])
+                sizes.append(new_sizes[i])
+            fmaps = fmaps + [[]]*len(new_fps)
 
+            def get_idx(r, fid, ranks, ids):
+                idxsr = [i for i,r_ in enumerate(ranks) if r_ == r]
+                idxsi = [i for i,j in enumerate(ids) if j == fid]
+                return list(set(idxsr) & set(idxsi))
+            
+            fps_ = []
+            ranks_ = []
+            id__ = []
+            sizes_ = []
+            fmaps_ = []
+            for r in range(size):
+                for fid in set(id_):
+                    idx = get_idx(r, fid, ranks, id_)
+                    idx_before = get_idx(r, fid, ranks_before, id_before)
+                    if len(idx_before) != 0:
+                        new_f, new_s, new_fm = broadcast_merge(list(np.array(fps_before)[idx_before]), list(np.array(sizes_before)[idx_before]), list(np.array(fmaps_before)[idx_before]),
+                                                                list(np.array(fps)[idx]), list(np.array(sizes)[idx]), list(np.array(fmaps)[idx]))
 
-        #TODO decide how to merge otherwise this will blow up
+                        fps_.append(new_f)
+                        ranks_.append(r)
+                        id__.append(fid)
+                        sizes_.append(new_s)
+                        fmaps_.append(new_fm)
+
+            fps = fps_
+            ranks = ranks_
+            id_ = id__
+            sizes = sizes_
+            fmaps = fmaps_
+
+            fps_before = copy.deepcopy(fps)
+            ranks_before = copy.deepcopy(ranks)
+            id_before = copy.deepcopy(id_)
+            sizes_before = copy.deepcopy(sizes)
+            fmaps_before = copy.deepcopy(fmaps)
+
         #-------------- MPI ------------#
 
-    return fps, fmap
+    print(rank, np.shape(fps), np.shape(fmaps), len(fmap))
+    return fps, fmaps
+
+def broadcast_merge(fp, fp_size, fp_fmap, fps, sizes, fmaps):
+    if len(fp) == 0:
+        return fps[0], sizes[0], fmaps[0]
+    else:
+        fp = np.array(fp)
+
+        size_diff = [s-fp_size for s in sizes]
+
+        fps_weighted = [sizes[i]*(np.array(fps[i]))-fp*fp_size for i in range(len(fps))]
+        fps_sum = fp.copy()
+        for fp_tmp in fps_weighted:
+            fps_sum += fp_tmp
+
+        size = sum([sizes[i]-fp_size for i in range(len(fps))]) + fp_size
+
+        new_fmaps = []
+        for fm in fmaps:
+            new_fmaps += fm
+        print(new_fmaps, fp_fmap)
+        new_fmaps = list(set(new_fmaps + fp_fmap[0]))
+        
+        return fps_sum/size, size, new_fmaps
+
 
 def mergeFingerprints(fps, fmap, similarity='dotsim', threshold=0.3):
     '''
@@ -200,7 +276,6 @@ def mergeFingerprints(fps, fmap, similarity='dotsim', threshold=0.3):
             merged_fmap[len(merged_fps) - 1] = fmap[i]
 
     return merged_fps, merged_fmap
-
 
 
 if __name__ == "__main__":
