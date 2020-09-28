@@ -142,8 +142,13 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
                     new_counts = new_counts + data['count']
                     new_fps = new_fps + data['fps']
 
-        for f in new_fps:
+        # add new fingerprints to fps
+        # and update the count
+        current_fps_size = len(fps)
+        for i,f in enumerate(new_fps):
             fps.append(f)
+            counts[i+current_fps_size] = new_counts[i] 
+
 
         #TODO decide how to merge otherwise this will blow up
         #-------------- MPI ------------#
