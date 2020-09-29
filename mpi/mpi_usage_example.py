@@ -22,10 +22,20 @@ csr_matrix = gr.read() # csr sparse matrix from the reader
 nodes = gr.local_vertices
 
 # find initial clusters, findClusters returns fps (list) and fmap (dict)
-fps, fmap = findClusters(nodes, csr_matrix, similarity='nmi', threshold=first_th)
+fingerprints = findClusters(nodes, csr_matrix, similarity='nmi', threshold=first_th)
 
 ''' ------------------- START MPI DATA TRANSFER ------------------------'''
-local_num_fps = len(fps)
+local_num_fps = len(fingerprints)
+print(rank)
+for fp in fingerprints:
+    print(fp[4])
+    mapped_fmap = []
+    for v in fp[4]:
+        mapped_fmap.append(gr.global_mapping_index_id[v])
+    fp[4] = mapped_fmap
+    print(fp[4])
+
+'''
 num_fps_per_rank = comm.gather(local_num_fps, root=0)
 
 if rank == 0:
@@ -41,7 +51,6 @@ else:
     for i, f in enumerate(fps):
         comm.Send(f, dest=0, tag=0)
         comm.send(fmap[i], dest=0, tag=1)
-''' ------------------- END MPI DATA TRANSFER ------------------------'''
 
 if rank == 0:
     # merge similar clusters
@@ -54,3 +63,4 @@ if rank == 0:
 
 # to run this script
 # mpiexec -n 4 python mpi_usage_example.py 
+'''

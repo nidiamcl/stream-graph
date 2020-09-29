@@ -48,34 +48,61 @@ clusters_path = '../sample_data/'
 sim1='dotsim'
 sim2='nmi'
 
+mapping = {'fp':0, 'rank':1, 'id':2, 'size':3, 'fmap':4}
+def get_field(fingerprints, field):
+    i = mapping[field]
+    return [fingerprints[j][i] for j in range(len(fingerprints))]
+
+def get_idx(r, fid, ranks, ids):
+    idxsr = [i for i,r_ in enumerate(ranks) if r_ == r]
+    idxsi = [i for i,j in enumerate(ids) if j == fid]
+    return list(set(idxsr) & set(idxsi))
+
 # actual algorithm
 gr = GraphReader(edge_list_path + network + '.tsv', node_edges_path + network + '_node_edges.txt')
 csr_matrix = gr.read() # csr sparse matrix from the reader
 nodes = gr.local_vertices
 
 # find initial clusters, findClusters returns fps (list) and fmap (dict)
-fps, fmap = findClusters(nodes, csr_matrix, similarity=sim1, threshold=t1)
+fingerprints_meta = findClusters(nodes, csr_matrix, similarity=sim1, threshold=t1)
 
 ''' ------------------- START MPI DATA TRANSFER ------------------------'''
-local_num_fps = len(fps)
-num_fps_per_rank = comm.gather(local_num_fps, root=0)
-
+all_fingerprints = comm.gather(fingerprints_meta, root = 0)
 if rank == 0:
-    for r, num_fps in enumerate(num_fps_per_rank):
-        if r != 0:
-            for _ in range(num_fps_per_rank[r]):
-                f = np.empty(len(fps[0]), dtype=np.float64)
-                comm.Recv(f, source=r, tag=0)
-                fps.append(f)
-                members = comm.recv(source=r, tag=1)
-                fmap[len(fps)-1] = members
-else:
-    for i, f in enumerate(fps):
-        comm.Send(f, dest=0, tag=0)
-        comm.send(fmap[i], dest=0, tag=1)
-''' ------------------- END MPI DATA TRANSFER ------------------------'''
+    fingerprints_meta = []
+    for fp in all_fingerprints:
+        fingerprints_meta = fingerprints_meta + fp
 
-if rank == 0:
+    fingerprints_meta_merged = []
+    for r in range(size):
+        for i in set(get_field(fingerprints_meta, 'id')):
+            idx = get_idx(r, i, get_field(fingerprints_meta, 'rank'), get_field(fingerprints_meta, 'id'))
+            if len(idx) > 0:
+                metas = list(np.array(fingerprints_meta)[idx])
+                maps = []
+                for tmp in metas:
+                    maps += tmp[4]
+               
+                fp = metas[0][0]
+                rank = metas[0][1]
+                idx = metas[0][2]
+                size = metas[0][3]
+
+                fp_meta = [fp, rank, idx, size, maps]
+                fingerprints_meta_merged.append(fp_meta)
+
+    # fingerprints has a list of fingerprint meta data, including: 
+    # fingerprint, the actual representative vector
+    # rank, which rank this fingerprint started in
+    # id, fingerprint id number. it is local to the rank
+    # size, number of nodes in the fingerprint
+    # nodes list, nodes that belong to the fingerprint
+    
+    fingerprints = get_field(fingerprints_meta_merged, 'fp') # fingerprints
+    fmap = get_field(fingerprints_meta_merged, 'fmap') # which nodes belong to the fingerprint
+
+    # TODO merge
+    '''
     # merge similar clusters
     merged_fps, merged_fmap = mergeFingerprints(fps, fmap, similarity=sim2, threshold=t2)
 
@@ -89,7 +116,5 @@ if rank == 0:
 
     pickle.dump(merged_fps, open(clusters_path + '{}_fps.pkl'.format(network), 'wb'))
     pickle.dump(merged_fmap, open(clusters_path + '{}_fmap.pkl'.format(network), 'wb'))
+    '''
 
-
-# how to run:
-# mpiexec -n 2 python run_clustering_mpi.py --n 'zebra' --t1 0.3 --t2 0.6

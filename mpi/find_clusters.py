@@ -57,9 +57,14 @@ mapping = {'fp':0, 'rank':1, 'id':2, 'size':3, 'fmap':4}
 def get_field(fingerprints, field):
     i = mapping[field]
     return [fingerprints[j][i] for j in range(len(fingerprints))]
+
+def get_idx(r, fid, ranks, ids):
+    idxsr = [i for i,r_ in enumerate(ranks) if r_ == r]
+    idxsi = [i for i,j in enumerate(ids) if j == fid]
+    return list(set(idxsr) & set(idxsi))
     
 # broadcast_stride : broadcast every broadcast_stride steps
-def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcast_stride = 50):
+def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcast_stride = 100):
     ''' 
     input
         nodes: list of nodes
@@ -101,17 +106,18 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
         # get best scoring fingerprint using dotSimilarity
         if similarity == 'dotsim':        
             # sorted and pop gets me the best scoring one (find something more elegant!)
-            score, fi, fp = sorted([(dotSimilarity(np.array(fp).astype(np.float32), row), fi, fp) for fi, fp in enumerate(fps)])[0]
+            score, fi, fp = sorted([(dotSimilarity(np.array(fp).astype(np.float32), row), fi, fp) for fi, fp in enumerate(fps)])[-1]
             #score, fi, fp = sorted([(dotSimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)])[0]
 
         # get best scoring fingerprint using cosine Similarity
         elif similarity == 'cosine':
-            score, fi, fp = sorted([(cosineSimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)])[0]
+            score, fi, fp = sorted([(cosineSimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)])[-1]
         
         # get best scoring fingerprint using mutual_info_score
         elif similarity == 'nmi':
-            score, fi, fp = sorted([(NMISimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)])[0]  
+            score, fi, fp = sorted([(NMISimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)])[-1]  
 
+        
         if score > threshold:
             # map node to fingerprint
             fingerprints[fi][mapping['fmap']].append(node) 
@@ -121,7 +127,7 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
             fingerprints.append([row.A[0].astype(np.float), rank, ri, 1, [node]])
 
         #-------------- MPI ------------#
-        if (ri + 1) % broadcast_stride == 0:
+        if (ri + 1) % broadcast_stride == 0 and size > 1:
             fingerprints_new = []
             for i in range(size):
                 if i == rank:
@@ -142,11 +148,6 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
             # add new fingerprints to fps
             fingerprints += fingerprints_new
 
-            def get_idx(r, fid, ranks, ids):
-                idxsr = [i for i,r_ in enumerate(ranks) if r_ == r]
-                idxsi = [i for i,j in enumerate(ids) if j == fid]
-                return list(set(idxsr) & set(idxsi))
-            
             fingerprints_merged = []
             ids = get_field(fingerprints, 'id')
             ids_before = get_field(fingerprints_before, 'id')
@@ -167,12 +168,48 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
             fingerprints_before = copy.deepcopy(fingerprints)
         #-------------- MPI ------------#
 
-    print(rank)
-    print(np.shape(fingerprints))
-    print(get_field(fingerprints, 'size'))
-    print(get_field(fingerprints, 'rank'))
-    print(get_field(fingerprints, 'id'))
-    return fps, fmaps
+    #-------------- MPI ------------#
+    fingerprints_new = []
+    for i in range(size):
+        if i == rank:
+            data = {
+                'fps' : get_field(fingerprints, 'fp'),
+                'size' : get_field(fingerprints, 'size'),
+                'id': get_field(fingerprints, 'id'),
+                'ranks': get_field(fingerprints, 'rank')                
+                }
+        else:
+            data = None
+        data = comm.bcast(data, root = i)
+       
+        if i != rank:
+            for j in range(len(data['size'])):
+                fingerprints_new.append([data['fps'][j], data['ranks'][j], data['id'][j], data['size'][j], []])
+
+    # add new fingerprints to fps
+    fingerprints += fingerprints_new
+
+    fingerprints_merged = []
+    ids = get_field(fingerprints, 'id')
+    ids_before = get_field(fingerprints_before, 'id')
+    for r in range(size):
+        for fid in set(ids):
+            idx = get_idx(r, fid, get_field(fingerprints, 'rank'), ids)
+            idx_before = get_idx(r, fid, get_field(fingerprints_before, 'rank'), ids_before)
+            if len(idx) != 0 and len(idx_before) != 0:
+                fp = broadcast_merge(list(np.array(fingerprints_before)[idx_before]), list(np.array(fingerprints)[idx]))
+                fingerprints_merged.append(fp)
+            elif len(idx_before) == 0 and len(idx) != 0:
+                fp = list(np.array(fingerprints)[idx])[0]
+                fingerprints_merged.append(fp)
+            elif len(idx) == 0 and len(idx_before) == 0:
+                continue
+
+    fingerprints = fingerprints_merged
+    fingerprints_before = copy.deepcopy(fingerprints)
+    #-------------- MPI ------------#
+
+    return fingerprints
 
 mapping = {'fp':0, 'rank':1, 'id':2, 'size':3, 'fmap':4}
 def broadcast_merge(fp, fingerprints):
@@ -188,12 +225,12 @@ def broadcast_merge(fp, fingerprints):
 
     size_diff = [s-fp_size for s in sizes]
 
-    fps_weighted = [sizes[i]*(np.array(fps[i]))-fp*fp_size for i in range(len(fps))]
-    fps_sum = fp.copy()
+    fps_weighted = [(sizes[i]*(np.array(fps[i])))-(fp*fp_size) for i in range(len(fps))] 
+    fps_sum = (fp_size*fp).copy()
     for fp_tmp in fps_weighted:
         fps_sum += fp_tmp
 
-    size = sum([sizes[i]-fp_size for i in range(len(fps))]) + fp_size
+    size = sum([size_diff[i] for i in range(len(fps))]) + fp_size
 
     new_fmaps = []
     for fm in fmaps:
