@@ -42,7 +42,7 @@ edge_list_path = '../sample_data/'
 # 5,103
 node_edges_path = '../sample_data/'
 
-# clusters_path: where resulting clusters will be saves
+# clusters_path: where resulting clusters will be saved
 clusters_path = '../sample_data/'
 
 sim1='dotsim'
@@ -101,6 +101,9 @@ if rank == 0:
     fingerprints = get_field(fingerprints_meta_merged, 'fp') # fingerprints
     fmap = get_field(fingerprints_meta_merged, 'fmap') # which nodes belong to the fingerprint
 
+    print('FINGERPRINTS:', fingerprints)
+    print('')
+    print('FMAP', fmap)
     # TODO merge
     '''
     # merge similar clusters

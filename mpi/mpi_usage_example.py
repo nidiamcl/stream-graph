@@ -26,6 +26,7 @@ fingerprints = findClusters(nodes, csr_matrix, similarity='nmi', threshold=first
 
 ''' ------------------- START MPI DATA TRANSFER ------------------------'''
 local_num_fps = len(fingerprints)
+
 print(rank)
 for fp in fingerprints:
     print(fp[4])
