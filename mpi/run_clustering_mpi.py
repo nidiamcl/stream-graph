@@ -66,6 +66,20 @@ nodes = gr.local_vertices
 # find initial clusters, findClusters returns fps (list) and fmap (dict)
 fingerprints_meta = findClusters(nodes, csr_matrix, similarity=sim1, threshold=t1)
 
+'''
+[[fps, rank, id, size, map],[fps, rank, id, size, map],...]
+fps : [.02, .43, ...]
+rank : rank where it came frome
+id : id in rank
+size : how many nodes are in this fingerprint
+map : [232, 34, 12...]
+
+f1 : rank 0 id 0 currently in rank 0 [0, 1]
+f1 : rank 0 id 0 currently in rank 1 [2]
+
+f1 [0, 1, 2]
+'''
+
 ''' ------------------- START MPI DATA TRANSFER ------------------------'''
 all_fingerprints = comm.gather(fingerprints_meta, root = 0)
 if rank == 0:
