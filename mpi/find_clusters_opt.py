@@ -489,9 +489,8 @@ def mergeSequentialFingerprints(fingerprints_meta_temp, outliers, save_path, sim
     '''
     print("MERGE FINGERPRINTS {}".format(outliers))
     _MIN_DENSITY = 2 # minimum number of elements in cluster to not be flushed
-    fingerprints_meta = []
 
-    # same kind of mapping of nodes to fingerprints
+    fingerprints_meta = []
     merged_fingerprints_meta = []
    
     if outliers == 'remove' or outliers== 'add':
@@ -548,13 +547,18 @@ def mergeSequentialFingerprints(fingerprints_meta_temp, outliers, save_path, sim
             sum_sonzeros=row_array[ai,idxs].sum()
             result=row_array[ai,idxs].dot(array_fps[idxs,:])  / sum_sonzeros
 
-                   
         elif similarity == 'jaccard':
             sum_sonzeros=row_array[ai,idxs_all].sum()
             sums=np.sum(array_fps[idxs_all,:],axis=0)+sum_sonzeros # array_fps is transposed
             result=np.divide(row_array[ai,idxs_all].dot(array_fps[idxs_all,:]),sums)
-            
- 
+
+        elif similarity == 'euclidean':
+            # 1/1+d(v1,v2) ie inverse of Euclidean distance = similarity score
+            # using all the vector, not only idxs
+            result = np.divide(1, 1 + np.sqrt(np.sum(np.square(np.subtract(row_array[ai,idxs_all],array_fps[idxs_all,:].transpose()))))) 
+            score=np.amax(result)
+            fi=np.where(result == np.amax(result))[0][-1]
+
         result[ai]=0.0 #make 0 it's own product
         bi=ai+1
         if bi<len(result):
@@ -608,56 +612,50 @@ def mergeSequentialFingerprints(fingerprints_meta_temp, outliers, save_path, sim
 
 
 # need to adapt this to meta_fingerprints structure 
-def mergeFingerprints(fps_temp, fmap_temp, outliers, save_path, similarity='dotsim', threshold=0.3):
+def mergeFingerprints(fingerprints_meta_temp, outliers, save_path, similarity='dotsim', threshold=0.3):
     '''
     finds similar clusters and merges them  
     '''
     print("MERGE FINGERPRINTS {}".format(outliers))
     _MIN_DENSITY = 2 # minimum number of elements in cluster to not be flushed
-    fmap = {}
-    fps=[]
-    # same kind of mapping of nodes to fingerprints
-    merged_fps = []
-    merged_fmap = {}
-    
+    fingerprints_meta = []
+    merged_fingerprints_meta = []
+
     if outliers == 'remove' or outliers== 'add':
         try:
             with open(save_path+'outliers.pkl', 'rb') as f: 
-                out_fps, out_fmap = pickle.load(f)
+                out_fingerprints_meta = pickle.load(f)
         except:
-            out_fps = []
-            out_fmap = {}         
+            out_fingerprints_meta = []
                 
     nmore=0
     if outliers == 'add':      
-        for i, fp in enumerate(out_fps):
-            fmap[i] = out_fmap[i].copy()
-            fps.append(out_fps[i])
+        for i, fp in enumerate(out_fingerprints_meta):
+            fingerprints_meta.append(out_fingerprints_meta[i])
             nmore+=1
-        out_fps.clear() #to empty the file
-        out_fmap.clear()
+        out_fingerprints_meta.clear() #to empty the file
         
         if nmore>0:
             print("# Adding back {} fingerprints".format(nmore))
             os.remove(save_path+'outliers.pkl')
-            
-    
-    # sort fingerprints from less to more density
-    #idxFP = np.argsort([ len(fmap_temp[listNodes]) for listNodes in fmap_temp])
-    list_lens=np.sort([ len(fmap_temp[listNodes]) for listNodes in fmap_temp])
-        
-    idxFP = np.argsort([ len(fmap_temp[listNodes]) for listNodes in fmap_temp])
+                
+              
+    # sort fingerprints from less to more density        
+    idxFP = np.argsort([fp[mapping['size']] for fp in fingerprints_meta_temp])
 
-    # sort fingerprints and change index to map
-    j=0
+    #idxFP = np.argsort([ len(fmap_temp[listNodes]) for listNodes in fmap_temp])
+    # list_lens=np.sort([ len(fmap_temp[listNodes]) for listNodes in fmap_temp])
+
+    # sort fingerprints 
     for i in idxFP:
-        fmap[j+nmore] = fmap_temp[i].copy()
-        fps.append(fps_temp[i])
-        j+=1
-        
+        fingerprints_meta.append(fingerprints_meta_temp[i])
+
+    fps = get_field(fingerprints_meta, 'fp')
     row_array=np.array(fps)
+        
     idxs_all=row_array.any(axis=0) #0
     array_fps=np.transpose(row_array)
+
     processed = []
     for ai, afp in enumerate(fps):
         
@@ -669,12 +667,18 @@ def mergeFingerprints(fps_temp, fmap_temp, outliers, save_path, similarity='dots
             idxs=np.nonzero(row_array[ai,:])[0]
             sum_sonzeros=row_array[ai,idxs].sum()
             result=row_array[ai,idxs].dot(array_fps[idxs,:])  / sum_sonzeros
-            
-            
+              
         elif similarity == 'jaccard':
             sum_sonzeros=row_array[ai,idxs_all].sum()
             sums=np.sum(array_fps[idxs_all,:],axis=0)+sum_sonzeros # array_fps is transposed
             result=np.divide(row_array[ai,idxs_all].dot(array_fps[idxs_all,:]),sums)
+        
+        elif similarity == 'euclidean':
+            # 1/1+d(v1,v2) ie inverse of Euclidean distance = similarity score
+            # using all the vector, not only idxs
+            result = np.divide(1, 1 + np.sqrt(np.sum(np.square(np.subtract(row_array[ai,idxs_all],array_fps[idxs_all,:].transpose()))))) 
+            score=np.amax(result)
+            fi=np.where(result == np.amax(result))[0][-1]
 
         # normalized mutual info score         
 
@@ -695,39 +699,38 @@ def mergeFingerprints(fps_temp, fmap_temp, outliers, save_path, similarity='dots
             continue     
         else:
             #print("score {}, theshold {}".format(score,threshold))
-            # merge fingerprints
-            fps[bi] = updateFingerprint(True, afp, fps[bi], len(fmap[ai]), len(fmap[bi])).copy() # merge in proportion of densities
-            fmap[bi] = list(set(fmap[bi] + fmap[ai]))
+
+            # merge fingerprints in proportion of densities
+            fingerprints_meta[bi][mapping['fp']][:] = updateFingerprint(True, afp, fps[bi], fingerprints_meta[ai][mapping['size']], fingerprints_meta[bi][mapping['size']])
+            fingerprints_meta[bi][mapping['fmap']] = list(set(fingerprints_meta[bi][mapping['fmap']] + fingerprints_meta[ai][mapping['fmap']]))
+
             # mark as processed
             processed += [ai]
             
     print("# Fingerprints merged: {}".format(len(processed))) 
     # add fingerprints that were not merged
     allnodes=0
-    for i, fp in enumerate(fps):
+    for i, fp_meta in enumerate(fingerprints_meta):
         
-        if outliers=='remove' and len(fmap[i]) <= _MIN_DENSITY: is_outlier = True 
+        if outliers=='remove' and fp_meta[mapping['size']] <= _MIN_DENSITY: is_outlier = True 
         else: is_outlier = False
         
         if i not in processed and not is_outlier:
-            merged_fps.append(fp)
-            merged_fmap[len(merged_fps) - 1] = list(fmap[i])
-            allnodes+=len(fmap[i])
+            merged_fingerprints_meta.append(fp_meta)
+            allnodes+=fingerprints_meta[i][mapping['size']]
             
         elif i not in processed and is_outlier:
-            out_fps.append(fp)
-            out_fmap[len(out_fps) - 1] = list(fmap[i])
-            
-            
-    if outliers == 'remove' and len(out_fps)>0:
+              out_fingerprints_meta.append(fp_meta)
+                
+    if outliers == 'remove' and len(fingerprints_meta) >0:
         with open(save_path+'outliers.pkl', 'wb') as f:  
-            pickle.dump([out_fps, out_fmap], f, protocol=-1)
-            print("# Fingerprints removed: {}".format(len(out_fps)))
+            pickle.dump(out_fingerprints_meta, f, protocol=-1)
+            print("# Fingerprints removed: {}".format(get_field(out_fingerprints_meta, 'size')))
 
     #print("Num nodes {}".format(sum([len(merged_fmap[listNodes]) for listNodes in merged_fmap])))
             
     print("# Nodes in fmap: {}\n".format(allnodes))
-    return merged_fps, merged_fmap
+    return merged_fingerprints_meta
 
 
 '''  

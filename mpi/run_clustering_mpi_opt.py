@@ -97,7 +97,7 @@ nodes = gr.local_vertices
 
 # find initial clusters
 # findClusters(nodes, csr_matrixg, fps, save_path, similarity='jaccard', threshold=0.05, threshold_merge=0.04, broadcast_stride = 100)
-fingerprints_meta, fingerprints_meta_outliers = findClusters(nodes, csr_matrix, fps, log_path, similarity=sim1, threshold=t1)
+fingerprints_meta, outliers_meta = findClusters(nodes, csr_matrix, fps, log_path, similarity=sim1, threshold=t1)
 
 ''' ------------------- START MPI DATA TRANSFER ------------------------'''
 all_fingerprints = comm.gather(fingerprints_meta, root = 0)
@@ -138,6 +138,27 @@ if rank == 0:
     # print('')
     # print('FMAP', fmap)
     # TODO merge
+    
+    # merge similar clusters
+    sim_merged_fingerprints_meta = mergeFingerprints(fingerprints_meta_merged, outliers, log_path, similarity=sim2, threshold=t2)
+
+    sim_merged_fingerprints = get_field(sim_merged_fingerprints_meta, 'fp') # fingerprints
+    sim_merged_fmap = get_field(sim_merged_fingerprints_meta, 'fmap') # which nodes belong to the fingerprint
+
+    # print(sim_merged_fmap)
+
+    end = MPI.Wtime()
+
+    print('network',network)
+    print('Calculating similarity: using ' + sim1 + ' and ' + sim2)
+    print('clusters found: ' + str(len(fingerprints_meta_merged)))
+    print('clusters merged: ' + str(len(fingerprints_meta_merged)-len(sim_merged_fingerprints_meta)))
+    print('remaining clusters: ' + str(len(sim_merged_fingerprints_meta)))
+
+    print('runtime', network, timedelta(seconds=end-start))
+
+
+
     '''
     # merge similar clusters
     merged_fps, merged_fmap = mergeFingerprints(fps, fmap, similarity=sim2, threshold=t2)
