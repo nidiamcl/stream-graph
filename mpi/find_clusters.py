@@ -16,6 +16,7 @@ import scipy as sp
 import tqdm as tqdm
 from reader import *
 from mpi4py import MPI
+from fingerprints import *
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -90,7 +91,6 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
     fingerprints_meta = []
     fingerprints_meta_before = []
 
-
     # [fingerprint, rank, id, size, fmap]
     ''' fingerprints_meta '''
     for ri, node in enumerate(nodes):
@@ -98,7 +98,7 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
     
         # initialize fingerprints_meta
         if len(fingerprints_meta) == 0:
-            fingerprints_meta.append([row.A[0].astype(np.float), rank, 0, 1, [node]])
+            fingerprints_meta.append(FingerprintMeta([row.A[0].astype(np.float), rank, 0, 1, [node]]))
             continue
       
         fps = get_field(fingerprints_meta, 'fp')
@@ -106,111 +106,64 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
         # get best scoring fingerprint using dotSimilarity
         if similarity == 'dotsim':        
             # sorted and pop gets me the best scoring one (find something more elegant!)
-            score, fi, fp = sorted([(dotSimilarity(np.array(fp).astype(np.float32), row), fi, fp) for fi, fp in enumerate(fps)])[-1]
+            score, fi, fp = sorted([(dotSimilarity(np.array(fp.get_fingerprint).astype(np.float32), row), fi, fp) for fi, fp in enumerate(fingerprints_meta)])[-1]
             #score, fi, fp = sorted([(dotSimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)])[0]
 
         # get best scoring fingerprint using cosine Similarity
         elif similarity == 'cosine':
-            score, fi, fp = sorted([(cosineSimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)])[-1]
+            score, fi, fp = sorted([(cosineSimilarity(fp.get_fingerprint, row), fi, fp) for fi, fp in enumerate(fingerprints_meta)])[-1]
         
         # get best scoring fingerprint using mutual_info_score
         elif similarity == 'nmi':
-            score, fi, fp = sorted([(NMISimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)])[-1]  
+            score, fi, fp = sorted([(NMISimilarity(fp.get_fingerprint, row), fi, fp) for fi, fp in enumerate(fingerprints_meta)])[-1]  
 
         
         if score > threshold:
             # map node to fingerprint
-            fingerprints_meta[fi][mapping['fmap']].append(node) 
-            fingerprints_meta[fi][mapping['size']] = fingerprints_meta[fi][mapping['size']] + 1
-            fingerprints_meta[fi][mapping['fp']][:] = updateFingerprint(fp, row, fingerprints_meta[fi][mapping['size']])
+            fingerprints_meta[fi].append_to_map(node)
+            fingerprints_meta[fi].increment()
+            fingerprints_meta[fi].set_fingerprints(updateFingerprint(fingerprints_meta[fi].get_fingerprint, row, fingerprints_meta[fi].get_size()))
         else:
-            fingerprints_meta.append([row.A[0].astype(np.float), rank, ri, 1, [node]])
+            fingerprints_meta.append(FingerprintsMeta([row.A[0].astype(np.float), rank, ri, 1, [node]]))
 
         #-------------- MPI ------------#
         if (ri + 1) % broadcast_stride == 0 and size > 1:
             fingerprints_meta_new = []
             for i in range(size):
                 if i == rank:
-                    data = {
-                        'fps' : get_field(fingerprints_meta, 'fp'),
-                        'size' : get_field(fingerprints_meta, 'size'),
-                        'id': get_field(fingerprints_meta, 'id'),
-                        'ranks': get_field(fingerprints_meta, 'rank')                
-                        }
+                    data = [meta.asList() for meta in fingerprints_meta]
                 else:
                     data = None
                 data = comm.bcast(data, root = i)
                
                 if i != rank:
                     for j in range(len(data['size'])):
-                        fingerprints_meta_new.append([data['fps'][j], data['ranks'][j], data['id'][j], data['size'][j], []])
+                        fingerprints_meta_new.append([FingerprintMeta.fromList(meta) for meta in data])
 
             # add new fingerprints_meta to fps
             fingerprints_meta += fingerprints_meta_new
 
             fingerprints_meta_merged = []
-            ids = get_field(fingerprints_meta, 'id')
-            ids_before = get_field(fingerprints_meta_before, 'id')
-            for r in range(size):
-                for fid in set(ids):
-                    idx = get_idx(r, fid, get_field(fingerprints_meta, 'rank'), ids)
-                    idx_before = get_idx(r, fid, get_field(fingerprints_meta_before, 'rank'), ids_before)
-                    if len(idx) != 0 and len(idx_before) != 0:
-                        fp = broadcast_merge(list(np.array(fingerprints_meta_before)[idx_before]), list(np.array(fingerprints_meta)[idx]))
-                        fingerprints_meta_merged.append(fp)
-                    elif len(idx_before) == 0 and len(idx) != 0:
-                        fp = list(np.array(fingerprints_meta)[idx])[0]
-                        fingerprints_meta_merged.append(fp)
-                    elif len(idx) == 0 and len(idx_before) == 0:
-                        continue
+            for bmeta in fingerprints_meta_before:
+                rank = bmeta.get_rank()
+                identifier = bmeta.get_id()
+
+                matching_metas = [m for m in fingerprints_meta if m.get_rank() == rank and m.get_id() == identifier]
+                
+                if len(matching_metas) != 0:
+                    diffs = [m-bmeta for m in matching_metas]
+                    for dmeta in diffs:
+                        bmeta = bmeta + dmeta
+                else:
+                    fingerprints_meta_merged.append(bmeta)
 
             fingerprints_meta = fingerprints_meta_merged
-            fingerprints_meta_before = copy.deepcopy(fingerprints_meta)
+            fingerprints_meta_before = [fpm.copy() for fpm in fingerprints_meta]
         #-------------- MPI ------------#
-
-    #-------------- MPI ------------#
-    fingerprints_meta_new = []
-    for i in range(size):
-        if i == rank:
-            data = {
-                'fps' : get_field(fingerprints_meta, 'fp'),
-                'size' : get_field(fingerprints_meta, 'size'),
-                'id': get_field(fingerprints_meta, 'id'),
-                'ranks': get_field(fingerprints_meta, 'rank')                
-                }
-        else:
-            data = None
-        data = comm.bcast(data, root = i)
-       
-        if i != rank:
-            for j in range(len(data['size'])):
-                fingerprints_meta_new.append([data['fps'][j], data['ranks'][j], data['id'][j], data['size'][j], []])
-
-    # add new fingerprints_meta to fps
-    fingerprints_meta += fingerprints_meta_new
-
-    fingerprints_meta_merged = []
-    ids = get_field(fingerprints_meta, 'id')
-    ids_before = get_field(fingerprints_meta_before, 'id')
-    for r in range(size):
-        for fid in set(ids):
-            idx = get_idx(r, fid, get_field(fingerprints_meta, 'rank'), ids)
-            idx_before = get_idx(r, fid, get_field(fingerprints_meta_before, 'rank'), ids_before)
-            if len(idx) != 0 and len(idx_before) != 0:
-                fp = broadcast_merge(list(np.array(fingerprints_meta_before)[idx_before]), list(np.array(fingerprints_meta)[idx]))
-                fingerprints_meta_merged.append(fp)
-            elif len(idx_before) == 0 and len(idx) != 0:
-                fp = list(np.array(fingerprints_meta)[idx])[0]
-                fingerprints_meta_merged.append(fp)
-            elif len(idx) == 0 and len(idx_before) == 0:
-                continue
-
-    fingerprints_meta = fingerprints_meta_merged
-    fingerprints_meta_before = copy.deepcopy(fingerprints_meta)
-    #-------------- MPI ------------#
 
     return fingerprints_meta
 
+'''  
 step n -> broadcast
 fps -> [0 0 1 2..] 0 0 2 from rank 0
 
@@ -226,34 +179,6 @@ fps -> [0 1 0 1 ...] 0 0 3 from rank 1
 fps -> [0 1 1 0 ...] 0 0 5 from rank 2
 
 mapping = {'fp':0, 'rank':1, 'id':2, 'size':3, 'fmap':4}
-def broadcast_merge(fp, fingerprints_meta):
-    fp_rank = fp[0][1]
-    fp_id =fp[0][2]
-    fp_size = fp[0][3]
-    fp_map = fp[0][4]
-    fp = np.array(fp[0][0])
-
-    sizes = get_field(fingerprints_meta, 'size')
-    fps = get_field(fingerprints_meta, 'fp')
-    fmaps = get_field(fingerprints_meta, 'fmap')
-
-    size_diff = [s-fp_size for s in sizes]
-
-    fps_weighted = [(sizes[i]*(np.array(fps[i])))-(fp*fp_size) for i in range(len(fps))] 
-    fps_sum = (fp_size*fp).copy()
-    for fp_tmp in fps_weighted:
-        fps_sum += fp_tmp
-
-    size = sum([size_diff[i] for i in range(len(fps))]) + fp_size
-
-    new_fmaps = []
-    for fm in fmaps:
-        new_fmaps += fm
-    new_fmaps = list(set(new_fmaps + fp_map))
-
-    return [fps_sum/size, fp_rank, fp_id, size, new_fmaps]
-
-'''  
 rank 0
 
 n1 [0 0 1 0]
