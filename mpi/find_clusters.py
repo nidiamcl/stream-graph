@@ -211,20 +211,6 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
 
     return fingerprints_meta
 
-step n -> broadcast
-fps -> [0 0 1 2..] 0 0 2 from rank 0
-
-step n + 1
-step n + 2
-
-....
-
-step n + K -> broadcast
-	fps        creation rank - id
-fps -> [0 1 1 1 ...] 0 0 4 from rank 0
-fps -> [0 1 0 1 ...] 0 0 3 from rank 1
-fps -> [0 1 1 0 ...] 0 0 5 from rank 2
-
 mapping = {'fp':0, 'rank':1, 'id':2, 'size':3, 'fmap':4}
 def broadcast_merge(fp, fingerprints_meta):
     fp_rank = fp[0][1]
@@ -253,7 +239,22 @@ def broadcast_merge(fp, fingerprints_meta):
 
     return [fps_sum/size, fp_rank, fp_id, size, new_fmaps]
 
-'''  
+'''
+step n -> broadcast
+fps -> [0 0 1 2..] 0 0 2 from rank 0
+
+step n + 1
+step n + 2
+
+....
+
+step n + K -> broadcast
+	fps        creation rank - id
+fps -> [0 1 1 1 ...] 0 0 4 from rank 0
+fps -> [0 1 0 1 ...] 0 0 3 from rank 1
+fps -> [0 1 1 0 ...] 0 0 5 from rank 2
+
+----------------------------------------------------------------------------
 rank 0
 
 n1 [0 0 1 0]
@@ -303,14 +304,6 @@ every rank will do the same merge
 merge -> 
 fps_new -> [0 0 1 .75] -> -1 0 
 '''
-
-
-
-
-
-
-
- 
 
         
 def mergeFingerprints(fps, fmap, similarity='dotsim', threshold=0.3):

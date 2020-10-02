@@ -32,7 +32,7 @@ t2 = args.t2
 # -------------------------------------------------------------------------------------------
 # INPUT AND OUTPUT PATHS
 
-edge_list_path = '../../../Code/stream_graph_data/all_networks/'
+# edge_list_path = '../../../Code/stream_graph_data/all_networks/'
 edge_list_path = '../sample_data/'
 # edge_list_path: path to file with the list of edges e.g., 
 # 1 2       i.e., there is an edge between node 1 and 2
@@ -40,7 +40,7 @@ edge_list_path = '../sample_data/'
 # 2 3
 # 2 5
 # ....
-node_edges_path = '../../../Code/stream_graph_data/node_edges_all_networks/'
+# node_edges_path = '../../../Code/stream_graph_data/node_edges_all_networks/'
 node_edges_path = '../sample_data/'
 # node_edges_path: path to file number of edges per node (needed for reader to read in all edges on a node)
 # 1,364        i.e., node 1 has 364 edges (there will be 364 adjacent lines to read in for this node)
@@ -50,9 +50,9 @@ node_edges_path = '../sample_data/'
 # 5,103
 
 # clusters_path: where resulting clusters will be saved
-clusters_path = 'clusters/dotsim_dotsim/'  + network + '/'
+# clusters_path = 'clusters/dotsim_dotsim/'  + network + '/'
 clusters_path = '../sample_data/'
-log_path = 'log/dotsim_dotsim/'  + network + '/'
+log_path = '../sample_data/log/dotsim_dotsim/'  + network + '/'
 scores_path = 'scores/dotsim_dotsim/'  + network + '/'
 
 # -------------------------------------------------------------------------------------------
@@ -97,7 +97,7 @@ nodes = gr.local_vertices
 
 # find initial clusters
 # findClusters(nodes, csr_matrixg, fps, save_path, similarity='jaccard', threshold=0.05, threshold_merge=0.04, broadcast_stride = 100)
-fingerprints_meta = findClusters(nodes, csr_matrix, fps, log_path, similarity=sim1, threshold=t1)
+fingerprints_meta, fingerprints_meta_outliers = findClusters(nodes, csr_matrix, fps, log_path, similarity=sim1, threshold=t1)
 
 ''' ------------------- START MPI DATA TRANSFER ------------------------'''
 all_fingerprints = comm.gather(fingerprints_meta, root = 0)
@@ -134,9 +134,9 @@ if rank == 0:
     fingerprints = get_field(fingerprints_meta_merged, 'fp') # fingerprints
     fmap = get_field(fingerprints_meta_merged, 'fmap') # which nodes belong to the fingerprint
 
-    print('FINGERPRINTS:', fingerprints)
-    print('')
-    print('FMAP', fmap)
+    # print('FINGERPRINTS:', fingerprints)
+    # print('')
+    # print('FMAP', fmap)
     # TODO merge
     '''
     # merge similar clusters
