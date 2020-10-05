@@ -97,7 +97,7 @@ nodes = gr.local_vertices
 
 # find initial clusters
 # findClusters(nodes, csr_matrixg, fps, save_path, similarity='jaccard', threshold=0.05, threshold_merge=0.04, broadcast_stride = 100)
-fingerprints_meta, outliers_meta = findClusters(nodes, csr_matrix, fps, log_path, similarity=sim1, threshold=t1)
+fingerprints_meta, outliers_meta = findClusters(nodes, csr_matrix, fps, log_path, similarity=sim1, threshold=t1, broadcast_stride = 5)
 
 ''' ------------------- START MPI DATA TRANSFER ------------------------'''
 all_fingerprints = comm.gather(fingerprints_meta, root = 0)
@@ -157,20 +157,7 @@ if rank == 0:
 
     print('runtime', network, timedelta(seconds=end-start))
 
-
-
     '''
-    # merge similar clusters
-    merged_fps, merged_fmap = mergeFingerprints(fps, fmap, similarity=sim2, threshold=t2)
-
-    # print(network)
-    # print('Calculating similarity: using ' + sim1 + ' and ' + sim2)
-    # print('clusters merged: ' + str(len(fmap)-len(merged_fmap)))
-    # print('remaining clusters: ' + str(len(merged_fmap)))
-
-    end = MPI.Wtime()
-    print(network, timedelta(seconds=end-start))
-
     pickle.dump(merged_fps, open(clusters_path + '{}_fps.pkl'.format(network), 'wb'))
     pickle.dump(merged_fmap, open(clusters_path + '{}_fmap.pkl'.format(network), 'wb'))
     '''
