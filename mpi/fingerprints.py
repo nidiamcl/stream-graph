@@ -3,19 +3,17 @@ import copy
 
 
 class FingerprintMeta(object):
-    def __init__(self, fingerprint, rank, identifier, size, meta):
+    def __init__(self, fingerprint, size, meta):
         self.fingerprint = np.array(fingerprint).astype(np.float64)
-        self.rank = rank
-        self.identifier = identifier
         self.size = size
         self.meta = meta
 
     @classmethod
     def fromList(cls, list_meta):
-        return FingerprintMeta(list_meta[0], list_meta[1], list_meta[2], list_meta[3], list_meta[4])
+        return FingerprintMeta(list_meta[0], list_meta[3], list_meta[4])
 
     def copy(self):
-        return FingerprintMeta(copy.deepcopy(self.fingerprint), self.rank, self.identifier, self.size, copy.deepcopy(self.meta))
+        return FingerprintMeta(copy.deepcopy(self.fingerprint), self.size, copy.deepcopy(self.meta))
 
     def get_fingerprint(self):
         return self.fingerprint
@@ -32,17 +30,11 @@ class FingerprintMeta(object):
     def get_size(self):
         return self.size
 
-    def get_rank(self):
-        return self.rank
-
-    def get_id(self):
-        return self.identifier
-
     def get_meta(self):
         return self.meta
 
     def asList(self):
-        return [self.fingerprint.tolist(), self.rank, self.identifier, self.size] 
+        return [self.fingerprint.tolist(), self.size] 
 
     def __add__(self, y):
         fingerprint = y.get_fingerprint()
@@ -52,7 +44,7 @@ class FingerprintMeta(object):
         new_fingerprint = (fingerprint*size+self.fingerprint*self.size)/(size+self.size)
         new_meta = list(set(self.meta) | set(meta))
 
-        return FingerprintMeta(new_fingerprint, self.rank, self.identifier, size+self.size, new_meta)
+        return FingerprintMeta(new_fingerprint, size+self.size, new_meta)
 
     def __sub__(self, y):
         fingerprint = y.get_fingerprint()
@@ -66,13 +58,13 @@ class FingerprintMeta(object):
 
         new_meta = list(set(self.meta) | set(meta))
 
-        return FingerprintMeta(new_fingerprint, self.rank, self.identifier, self.size-size, new_meta)
+        return FingerprintMeta(new_fingerprint, self.size-size, new_meta)
 
     def __repr__(self):
-        return '[rank: '+str(self.rank)+',id:'+ str(self.identifier)+ ',size:'+ str(self.size)+']'
+        return '[size:'+ str(self.size)+']'
 
     def __str__(self):
-        return '[rank: '+str(self.rank)+',id:'+ str(self.identifier)+ ',size:'+ str(self.size)+']'
+        return '[size:'+ str(self.size)+']'
 
 
 
