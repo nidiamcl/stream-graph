@@ -1,36 +1,10 @@
 import numpy as np
 import copy
 
-def broadcast_merge(bmeta, fingerprints_meta):
-    fp_rank = fp[0][1]
-    fp_id =fp[0][2]
-    fp_size = fp[0][3]
-    fp_map = fp[0][4]
-    fp = np.array(fp[0][0])
-
-    sizes = get_field(fingerprints_meta, 'size')
-    fps = get_field(fingerprints_meta, 'fp')
-    fmaps = get_field(fingerprints_meta, 'fmap')
-
-    size_diff = [s-fp_size for s in sizes]
-
-    fps_weighted = [(sizes[i]*(np.array(fps[i])))-(fp*fp_size) for i in range(len(fps))] 
-    fps_sum = (fp_size*fp).copy()
-    for fp_tmp in fps_weighted:
-        fps_sum += fp_tmp
-
-    size = sum([size_diff[i] for i in range(len(fps))]) + fp_size
-
-    new_fmaps = []
-    for fm in fmaps:
-        new_fmaps += fm
-    new_fmaps = list(set(new_fmaps + fp_map))
-
-    return [fps_sum/size, fp_rank, fp_id, size, new_fmaps]
 
 class FingerprintMeta(object):
     def __init__(self, fingerprint, rank, identifier, size, meta):
-        self.fingerprint = np.array(fingerprint)
+        self.fingerprint = np.array(fingerprint).astype(np.float64)
         self.rank = rank
         self.identifier = identifier
         self.size = size
@@ -38,10 +12,10 @@ class FingerprintMeta(object):
 
     @classmethod
     def fromList(cls, list_meta):
-        return cls(list_meta[0], list_meta[1], list_meta[2], list_meta[3], list_meta[4]
+        return FingerprintMeta(list_meta[0], list_meta[1], list_meta[2], list_meta[3], list_meta[4])
 
     def copy(self):
-        return cls(copy.deepcopy(self.fingerprint), self.rank, self.identifier, self.size, copy.deepcopy(self.meta)
+        return FingerprintMeta(copy.deepcopy(self.fingerprint), self.rank, self.identifier, self.size, copy.deepcopy(self.meta))
 
     def get_fingerprint(self):
         return self.fingerprint
@@ -53,7 +27,7 @@ class FingerprintMeta(object):
         self.size = self.size + 1
 
     def set_fingerprint(self, fingerprint):
-        self.fingerprint = np.array(fingerprint).flatten()
+        self.fingerprint = np.array(fingerprint).flatten().astype(np.float64)
 
     def get_size(self):
         return self.size
@@ -68,7 +42,7 @@ class FingerprintMeta(object):
         return self.meta
 
     def asList(self):
-        return [self.fingerprint, self.rank, self.identifier, self.size, self.meta] 
+        return [self.fingerprint.tolist(), self.rank, self.identifier, self.size] 
 
     def __add__(self, y):
         fingerprint = y.get_fingerprint()
@@ -76,7 +50,7 @@ class FingerprintMeta(object):
         meta = y.get_meta()
 
         new_fingerprint = (fingerprint*size+self.fingerprint*self.size)/(size+self.size)
-        new_meta = list(set(self.meta + meta))
+        new_meta = list(set(self.meta) | set(meta))
 
         return FingerprintMeta(new_fingerprint, self.rank, self.identifier, size+self.size, new_meta)
 
@@ -85,12 +59,20 @@ class FingerprintMeta(object):
         size = y.get_size()
         meta = y.get_meta()
 
-        new_fingerprint = (self.fingerprint*self.size-fingerprint*size)/(self.size-size)
-        new_meta = list(set(self.meta + meta))
+        if (self.size - size) > 0:
+            new_fingerprint = (self.fingerprint*self.size-fingerprint*size)/(self.size-size)
+        else:
+            new_fingerprint = self.fingerprint*0
+
+        new_meta = list(set(self.meta) | set(meta))
 
         return FingerprintMeta(new_fingerprint, self.rank, self.identifier, self.size-size, new_meta)
 
+    def __repr__(self):
+        return '[rank: '+str(self.rank)+',id:'+ str(self.identifier)+ ',size:'+ str(self.size)+']'
 
+    def __str__(self):
+        return '[rank: '+str(self.rank)+',id:'+ str(self.identifier)+ ',size:'+ str(self.size)+']'
 
 
 

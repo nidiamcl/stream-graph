@@ -45,7 +45,7 @@ def NMISimilarity(fp,vec):
 def updateFingerprint(fp, vec, count):
     ''' updates a fingerprint when a node vector is added to the cluster
         weighted merge of the node vector with the fingerprint '''
-    
+   
     # for sparse matrices in csr format
     if scipy.sparse.isspmatrix_csr(vec):
         return (fp * ((count-1)/count)) + (vec.A.astype(np.float) * (1/count))
@@ -54,18 +54,8 @@ def updateFingerprint(fp, vec, count):
     else:
         return (fp * ((count-1)/count)) + (vec*(1/count))
     
-mapping = {'fp':0, 'rank':1, 'id':2, 'size':3, 'fmap':4}
-def get_field(fingerprints_meta, field):
-    i = mapping[field]
-    return [fingerprints_meta[j][i] for j in range(len(fingerprints_meta))]
-
-def get_idx(r, fid, ranks, ids):
-    idxsr = [i for i,r_ in enumerate(ranks) if r_ == r]
-    idxsi = [i for i,j in enumerate(ids) if j == fid]
-    return list(set(idxsr) & set(idxsi))
-    
 # broadcast_stride : broadcast every broadcast_stride steps
-def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcast_stride = 100):
+def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcast_stride = 100, max_v_count = None):
     ''' 
     input
         nodes: list of nodes
@@ -93,67 +83,72 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
 
     # [fingerprint, rank, id, size, fmap]
     ''' fingerprints_meta '''
-    for ri, node in enumerate(nodes):
-        row = csr_matrix[ri]
-    
-        # initialize fingerprints_meta
-        if len(fingerprints_meta) == 0:
-            fingerprints_meta.append(FingerprintMeta([row.A[0].astype(np.float), rank, 0, 1, [node]]))
-            continue
-      
-        fps = get_field(fingerprints_meta, 'fp')
+    #for ri, node in enumerate(nodes):
+    for ri in range(max_v_count):
+        if ri < len(nodes):
+            node = nodes[ri]
 
-        # get best scoring fingerprint using dotSimilarity
-        if similarity == 'dotsim':        
-            # sorted and pop gets me the best scoring one (find something more elegant!)
-            score, fi, fp = sorted([(dotSimilarity(np.array(fp.get_fingerprint).astype(np.float32), row), fi, fp) for fi, fp in enumerate(fingerprints_meta)])[-1]
-            #score, fi, fp = sorted([(dotSimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)])[0]
-
-        # get best scoring fingerprint using cosine Similarity
-        elif similarity == 'cosine':
-            score, fi, fp = sorted([(cosineSimilarity(fp.get_fingerprint, row), fi, fp) for fi, fp in enumerate(fingerprints_meta)])[-1]
+            row = csr_matrix[ri]
         
-        # get best scoring fingerprint using mutual_info_score
-        elif similarity == 'nmi':
-            score, fi, fp = sorted([(NMISimilarity(fp.get_fingerprint, row), fi, fp) for fi, fp in enumerate(fingerprints_meta)])[-1]  
+            # initialize fingerprints_meta
+            if len(fingerprints_meta) == 0:
+                fingerprints_meta.append(FingerprintMeta(row.A[0].astype(np.float), rank, 0, 1, [node]))
+                continue
+          
+            # get best scoring fingerprint using dotSimilarity
+            if similarity == 'dotsim':        
+                # sorted and pop gets me the best scoring one (find something more elegant!)
+                score, fi, fp = sorted([(dotSimilarity(np.array(fp.get_fingerprint()).astype(np.float32), row), fi, fp) for fi, fp in enumerate(fingerprints_meta)])[-1]
+                #score, fi, fp = sorted([(dotSimilarity(fp, row), fi, fp) for fi, fp in enumerate(fps)])[0]
 
-        
-        if score > threshold:
-            # map node to fingerprint
-            fingerprints_meta[fi].append_to_map(node)
-            fingerprints_meta[fi].increment()
-            fingerprints_meta[fi].set_fingerprints(updateFingerprint(fingerprints_meta[fi].get_fingerprint, row, fingerprints_meta[fi].get_size()))
-        else:
-            fingerprints_meta.append(FingerprintsMeta([row.A[0].astype(np.float), rank, ri, 1, [node]]))
+            # get best scoring fingerprint using cosine Similarity
+            elif similarity == 'cosine':
+                score, fi, fp = sorted([(cosineSimilarity(fp.get_fingerprint(), row), fi, fp) for fi, fp in enumerate(fingerprints_meta)])[-1]
+            
+            # get best scoring fingerprint using mutual_info_score
+            elif similarity == 'nmi':
+                score, fi, fp = sorted([(NMISimilarity(fp.get_fingerprint(), row), fi, fp) for fi, fp in enumerate(fingerprints_meta)])[-1]  
+
+            
+            if score > threshold:
+                # map node to fingerprint
+                fingerprints_meta[fi].append_to_map(node)
+                fingerprints_meta[fi].increment()
+                fingerprints_meta[fi].set_fingerprint(updateFingerprint(fingerprints_meta[fi].get_fingerprint(), row, fingerprints_meta[fi].get_size()))
+            else:
+                fingerprints_meta.append(FingerprintMeta(row.A[0].astype(np.float64), rank, ri, 1, [node]))
 
         #-------------- MPI ------------#
-        if (ri + 1) % broadcast_stride == 0 and size > 1:
+        if ((ri + 1) % broadcast_stride == 0 and size > 1) or (ri == (max_v_count - 1)):
             fingerprints_meta_new = []
             for i in range(size):
+                data = None
                 if i == rank:
                     data = [meta.asList() for meta in fingerprints_meta]
-                else:
-                    data = None
                 data = comm.bcast(data, root = i)
-               
+
                 if i != rank:
-                    for j in range(len(data['size'])):
-                        fingerprints_meta_new.append([FingerprintMeta.fromList(meta) for meta in data])
+                    fingerprints_meta_new = fingerprints_meta_new + [FingerprintMeta(meta[0], meta[1], meta[2],  meta[3], []) for meta in data]
+
+            if ri+1 == broadcast_stride:
+                base = fingerprints_meta
+            else:
+                base = fingerprints_meta_before
 
             # add new fingerprints_meta to fps
             fingerprints_meta += fingerprints_meta_new
 
             fingerprints_meta_merged = []
-            for bmeta in fingerprints_meta_before:
-                rank = bmeta.get_rank()
+            for bmeta in base:
+                fp_rank = bmeta.rank
                 identifier = bmeta.get_id()
-
-                matching_metas = [m for m in fingerprints_meta if m.get_rank() == rank and m.get_id() == identifier]
-                
+                matching_metas = [m for m in fingerprints_meta if m.get_rank() == fp_rank and m.get_id() == identifier]
+          
                 if len(matching_metas) != 0:
                     diffs = [m-bmeta for m in matching_metas]
                     for dmeta in diffs:
                         bmeta = bmeta + dmeta
+                    fingerprints_meta_merged.append(bmeta)
                 else:
                     fingerprints_meta_merged.append(bmeta)
 
@@ -161,81 +156,8 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
             fingerprints_meta_before = [fpm.copy() for fpm in fingerprints_meta]
         #-------------- MPI ------------#
 
+    print(rank, fingerprints_meta)
     return fingerprints_meta
-
-'''  
-step n -> broadcast
-fps -> [0 0 1 2..] 0 0 2 from rank 0
-
-step n + 1
-step n + 2
-
-....
-
-step n + K -> broadcast
-	fps        creation rank - id
-fps -> [0 1 1 1 ...] 0 0 4 from rank 0
-fps -> [0 1 0 1 ...] 0 0 3 from rank 1
-fps -> [0 1 1 0 ...] 0 0 5 from rank 2
-
-mapping = {'fp':0, 'rank':1, 'id':2, 'size':3, 'fmap':4}
-rank 0
-
-n1 [0 0 1 0]
-n2 [0 0 1 1]
-
-fp -> [0 0 1 0] 1
-fp -> [0 0 1 .5] 2
-
-bradcast
-
-[0 0 1 1] 
-[0 0 1 1]
-
-fp -> [0 0 1 .6666] 3
-fp -> [0 0 1 .75] 4
-
-
-rank 1
-
-fp -> [0 0 1 .5] 2 
-
-n1 [0 0 1 0]
-
-fp -> [0 0 1 .333] 3
-
-broadcast
-
-rank 0
-
-previous version -> [ 0 0 1 .5] 2 -> [0 0 2 1]
-
-[0 0 1 .75] 4 -> [0 0 4 3] - [0 0 2 1] = [0 0 2 2]
-[0 0 1 .3333] 3 -> [0 0 3 1] - [0 0 2 1] = [0 0 1 0]
-
-[0 0 2 1] + [0 0 2 2] + [0 0 1 0]  = [0 0 5 3]/5 = [0 0 1 3/5]
-
-rank 0 
-[0 0 1 1]
-
-fps [0 0 1 1] 0 2
-
-rank 1
-[0 0 1 1]
-fps [0 0 1 .5] -1 0
-
-every rank will do the same merge
-merge -> 
-fps_new -> [0 0 1 .75] -> -1 0 
-'''
-
-
-
-
-
-
-
- 
 
         
 def mergeFingerprints(fps, fmap, similarity='dotsim', threshold=0.3):

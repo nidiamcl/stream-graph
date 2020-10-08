@@ -38,7 +38,8 @@ class GraphReader:
     counts = partitions[:,1]
     local_vertex_count = math.ceil(self.num_vertices / self.size)
 
-    self.local_vertices = self.get_vertices(partitions, local_vertex_count)
+    self.vertex_distribution = self.get_vertices(partitions, local_vertex_count)
+    self.local_vertices = self.get_vertices(partitions, local_vertex_count)[self.rank]
     self.path = path
     # -----------------------------------------------------------
 
@@ -106,7 +107,7 @@ class GraphReader:
       if len(dist[current_rank]) == local_vertex_count:
         current_rank += 1
 
-    return dist[self.rank]
+    return dist
     
 if __name__ == "__main__":
   #to_hdf5('../sample_data/protein.tsv') 

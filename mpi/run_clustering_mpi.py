@@ -62,28 +62,17 @@ def get_idx(r, fid, ranks, ids):
 gr = GraphReader(edge_list_path + network + '.tsv', node_edges_path + network + '_node_edges.txt')
 csr_matrix = gr.read() # csr sparse matrix from the reader
 nodes = gr.local_vertices
+vertex_distribution = gr.vertex_distribution
 
 # find initial clusters, findClusters returns fps (list) and fmap (dict)
-fingerprints_meta = findClusters(nodes, csr_matrix, similarity=sim1, threshold=t1)
-
-'''
-[[fps, rank, id, size, map],[fps, rank, id, size, map],...]
-fps : [.02, .43, ...]
-rank : rank where it came frome
-id : id in rank
-size : how many nodes are in this fingerprint
-map : [232, 34, 12...]
-
-f1 : rank 0 id 0 currently in rank 0 [0, 1]
-f1 : rank 0 id 0 currently in rank 1 [2]
-
-f1 [0, 1, 2]
-'''
+# I need to know the max vertex count
+fingerprints_meta = findClusters(nodes, csr_matrix, similarity=sim1, threshold=t1, max_v_count = max([len(v) for v in vertex_distribution]))
 
 ''' ------------------- START MPI DATA TRANSFER ------------------------'''
 all_fingerprints = comm.gather(fingerprints_meta, root = 0)
 if rank == 0:
     fingerprints_meta = []
+    '''
     for fp in all_fingerprints:
         fingerprints_meta = fingerprints_meta + fp
 
@@ -119,6 +108,7 @@ if rank == 0:
     print('')
     print('FMAP', fmap)
     # TODO merge
+    '''
     '''
     # merge similar clusters
     merged_fps, merged_fmap = mergeFingerprints(fps, fmap, similarity=sim2, threshold=t2)
