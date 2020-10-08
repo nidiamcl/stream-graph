@@ -117,26 +117,22 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
                 fingerprints_meta[fi].set_fingerprint(updateFingerprint(fingerprints_meta[fi].get_fingerprint(), row, fingerprints_meta[fi].get_size()))
             else:
                 fingerprints_meta.append(FingerprintMeta(row.A[0].astype(np.float64), rank, ri, 1, [node]))
-
+        
         #-------------- MPI ------------#
         if ((ri + 1) % broadcast_stride == 0 and size > 1) or (ri == (max_v_count - 1)):
             fingerprints_meta_new = []
             for i in range(size):
                 data = None
                 if i == rank:
-                    data = [meta.asList() for meta in fingerprints_meta]
+                    data = [meta.asList()[:4] for meta in fingerprints_meta]
                 data = comm.bcast(data, root = i)
 
                 if i != rank:
                     fingerprints_meta_new = fingerprints_meta_new + [FingerprintMeta(meta[0], meta[1], meta[2],  meta[3], []) for meta in data]
-
-            if ri+1 == broadcast_stride:
-                base = fingerprints_meta
-            else:
-                base = fingerprints_meta_before
-
+            
             # add new fingerprints_meta to fps
             fingerprints_meta += fingerprints_meta_new
+            base = list((set(fingerprints_meta)-set(fingerprints_meta_before)) | set(fingerprints_meta_before))
 
             fingerprints_meta_merged = []
             for bmeta in base:
@@ -144,7 +140,7 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
                 identifier = bmeta.get_id()
                 matching_metas = [m for m in fingerprints_meta if m.get_rank() == fp_rank and m.get_id() == identifier]
           
-                if len(matching_metas) != 0:
+                if len(matching_metas) != 0 and ri+1 != broadcast_stride:
                     diffs = [m-bmeta for m in matching_metas]
                     for dmeta in diffs:
                         bmeta = bmeta + dmeta
@@ -152,11 +148,10 @@ def findClusters(nodes, csr_matrix, similarity='dotsim', threshold=0.5, broadcas
                 else:
                     fingerprints_meta_merged.append(bmeta)
 
-            fingerprints_meta = fingerprints_meta_merged
+            fingerprints_meta = [fpm.copy() for fpm in fingerprints_meta_merged]
             fingerprints_meta_before = [fpm.copy() for fpm in fingerprints_meta]
         #-------------- MPI ------------#
 
-    print(rank, fingerprints_meta)
     return fingerprints_meta
 
         

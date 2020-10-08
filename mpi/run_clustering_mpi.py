@@ -5,6 +5,7 @@ import pickle as pkl
 from timeit import default_timer as timer
 from datetime import timedelta
 import argparse
+from fingerprints import *
 # from th import *
 
 # parse arguments
@@ -69,46 +70,31 @@ vertex_distribution = gr.vertex_distribution
 fingerprints_meta = findClusters(nodes, csr_matrix, similarity=sim1, threshold=t1, max_v_count = max([len(v) for v in vertex_distribution]))
 
 ''' ------------------- START MPI DATA TRANSFER ------------------------'''
-all_fingerprints = comm.gather(fingerprints_meta, root = 0)
+data = [meta.asList() for meta in fingerprints_meta]
+all_data = comm.gather(data, root = 0)
 if rank == 0:
     fingerprints_meta = []
-    '''
-    for fp in all_fingerprints:
-        fingerprints_meta = fingerprints_meta + fp
+    for fp in all_data:
+        fingerprints_meta.append([FingerprintMeta(m[0],m[1],m[2],m[3],m[4]) for m in fp])
 
-    fingerprints_meta_merged = []
-    for r in range(size):
-        for i in set(get_field(fingerprints_meta, 'id')):
-            idx = get_idx(r, i, get_field(fingerprints_meta, 'rank'), get_field(fingerprints_meta, 'id'))
-            if len(idx) > 0:
-                metas = list(np.array(fingerprints_meta)[idx])
-                maps = []
-                for tmp in metas:
-                    maps += tmp[4]
-               
-                fp = metas[0][0]
-                rank = metas[0][1]
-                idx = metas[0][2]
-                size = metas[0][3]
+    final_fingerprints_meta = []
+    for meta in fingerprints_meta[0]:
+        matching = [meta]
+        r = meta.rank
+        identifier = meta.identifier
+        for metas in fingerprints_meta[1:]:
+            
+            for meta2 in metas:
+                if meta2.rank == r and meta2.identifier == identifier:
+                    matching.append(meta2)
 
-                fp_meta = [fp, rank, idx, size, maps]
-                fingerprints_meta_merged.append(fp_meta)
+        fmap = []
+        for m in matching:
+            fmap = fmap + m.meta
+        
+        final_fingerprints_meta.append(FingerprintMeta(meta.fingerprint, meta.rank, meta.identifier, len(fmap), fmap))
 
-    # fingerprints has a list of fingerprint meta data, including: 
-    # fingerprint, the actual representative vector
-    # rank, which rank this fingerprint started in
-    # id, fingerprint id number. it is local to the rank
-    # size, number of nodes in the fingerprint
-    # nodes list, nodes that belong to the fingerprint
-    
-    fingerprints = get_field(fingerprints_meta_merged, 'fp') # fingerprints
-    fmap = get_field(fingerprints_meta_merged, 'fmap') # which nodes belong to the fingerprint
-
-    print('FINGERPRINTS:', fingerprints)
-    print('')
-    print('FMAP', fmap)
     # TODO merge
-    '''
     '''
     # merge similar clusters
     merged_fps, merged_fmap = mergeFingerprints(fps, fmap, similarity=sim2, threshold=t2)

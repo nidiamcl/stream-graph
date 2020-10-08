@@ -10,6 +10,17 @@ class FingerprintMeta(object):
         self.size = size
         self.meta = meta
 
+    def __key(self):
+        return (self.rank, self.identifier)
+
+    def __hash__(self):
+        return hash(self.__key())
+
+    def __eq__(self, other):
+        if isinstance(other, FingerprintMeta):
+            return self.__key() == other.__key()
+        return NotImplemented
+
     @classmethod
     def fromList(cls, list_meta):
         return FingerprintMeta(list_meta[0], list_meta[1], list_meta[2], list_meta[3], list_meta[4])
@@ -42,14 +53,14 @@ class FingerprintMeta(object):
         return self.meta
 
     def asList(self):
-        return [self.fingerprint.tolist(), self.rank, self.identifier, self.size] 
+        return [self.fingerprint.tolist(), self.rank, self.identifier, self.size, self.meta] 
 
     def __add__(self, y):
         fingerprint = y.get_fingerprint()
         size = y.get_size()
         meta = y.get_meta()
 
-        new_fingerprint = (fingerprint*size+self.fingerprint*self.size)/(size+self.size)
+        new_fingerprint = ((fingerprint*size)+(self.fingerprint*self.size))/(size+self.size)
         new_meta = list(set(self.meta) | set(meta))
 
         return FingerprintMeta(new_fingerprint, self.rank, self.identifier, size+self.size, new_meta)
@@ -64,7 +75,7 @@ class FingerprintMeta(object):
         else:
             new_fingerprint = self.fingerprint*0
 
-        new_meta = list(set(self.meta) | set(meta))
+        new_meta = list(set(self.meta) - set(meta))
 
         return FingerprintMeta(new_fingerprint, self.rank, self.identifier, self.size-size, new_meta)
 
